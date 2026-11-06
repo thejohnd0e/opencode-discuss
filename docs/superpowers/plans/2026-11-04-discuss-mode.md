@@ -563,7 +563,7 @@ went unanswered.
 
 - [x] Found live 2026-11-07 (run `9cf52f39`, English topic): one model and its conclusion answered in Russian, because the Russian-worded "answer in the topic's language" rule is weaker than the Russian instructions. Now the rule quotes the topic and, for a topic in Latin script, is written in English ("not in Russian"); it is recomputed when the topic changes.
 
-### 15b: Claim ledger — done offline 2026-11-07
+### 15b: Claim ledger — done, verified live 2026-11-07
 
 - [x] Each reply ends with a short list of its own numbered claims (A1, A2, B1…);
   the opponent must close open claims by number (rebutted / accepted).
@@ -574,7 +574,7 @@ went unanswered.
 - [x] Details: the runner numbers claims itself and lists the opponent's open claims in the prompt; the block is `[ledger] … [/ledger]` with `+ A2: …` and `B1: rebutted|accepted` (tolerant to Markdown emphasis, bullets, dashes, a code fence, a missing close tag); only open claims of the opponent can be closed; the block is cut from the stored and streamed text; `Message.ledger` in store and RPC; state derived in TS from the messages (`ledgerOf`); handoff "Claims ledger" section. 204 unit, 27 Python, smoke ready.
 - [x] Live 2026-11-07, run `dd6c56a7` (debate, 3 rounds, 1500 tokens, conclusion=b, Russian topic): completed, 7 of 7 requests, $0.0028. Two parser faults found and fixed: (1) GPT wrote the ledger lines and `[/ledger]` but never `[ledger]`, so all its claims and verdicts were lost and its replies were marked "could not be read" (now a block is also found by its close tag or as a trailing run of claim/verdict lines); (2) two quotes on adjacent `>` lines were joined into one passage and reported as not found (now every `>` line is its own quote). Replaying GPT's real replies after the fix: all three blocks read, quotes 2 of 2. 30 Python tests.
 - [x] Live re-run 2026-11-07, run `a455d79a`: the ledger now parsed on every reply (B rebutted A1, quotes 2/2), but DeepSeek (`low`) failed rounds 2 and 3 with "output limit of 1500 tokens reached before any visible text" (the longer debate prompt). The runner then kept going: GPT answered the same first reply three times and wrote a conclusion, 9 requests instead of 7, status failed. Fixed: the first failed turn (error, timeout, empty reply) ends the run and no conclusion is written; the start dialog and `/discuss-settings` warn when a debate has fewer than 3000 tokens per reply. 206 unit, 31 Python.
-- [ ] Live re-run of a 3-round debate with `tokens=3000` or more.
+- [x] Live 2026-11-07, run `3860835f` (debate, 3 rounds, 6000 tokens, conclusion=b): completed, 7 of 7 requests, $0.0047. Every reply's ledger was read; every checked reply quoted the opponent twice, all real; every open claim was answered on the next turn (A1, A2 rebutted; B1, B2, A3, B3, A4 accepted), only the last claim B4 stayed open, as it must. 15b done.
 
 ## Phase 2 delivery checkpoints
 

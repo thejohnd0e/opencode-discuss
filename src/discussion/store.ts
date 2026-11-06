@@ -17,6 +17,7 @@ import {
   type Storage,
   type StoredState,
   type Usage,
+  type Handoff,
 } from "./types"
 import { LEGACY_STATE_KEY, stateKey } from "./location"
 
@@ -131,6 +132,13 @@ export function validateRun(value: unknown, where = "run"): Run {
   if (error !== undefined && typeof error !== "string") fail(`${where}.error must be a string`)
   const finishedAt = value.finishedAt
   if (finishedAt !== undefined && typeof finishedAt !== "number") fail(`${where}.finishedAt is invalid`)
+  const handoff = value.handoff
+  if (
+    handoff !== undefined &&
+    (!isRecord(handoff) || (handoff.target !== "plan" && handoff.target !== "build") || typeof handoff.at !== "number")
+  ) {
+    fail(`${where}.handoff is invalid`)
+  }
 
   return {
     runID: value.runID,
@@ -145,6 +153,7 @@ export function validateRun(value: unknown, where = "run"): Run {
     ...(error === undefined ? {} : { error }),
     ...(errorKind === undefined ? {} : { errorKind: errorKind as Run["errorKind"] }),
     ...(usage(value.usage, `${where}.usage`) === undefined ? {} : { usage: value.usage as Usage }),
+    ...(handoff === undefined ? {} : { handoff: { target: handoff.target, at: handoff.at } as Handoff }),
   }
 }
 
@@ -451,6 +460,25 @@ export class DiscussionStore {
     const run = this.#requireRun(location, sessionID, runID)
     run.usage = { ...run.usage, ...value }
     return this.#touch()
+  }
+
+  /**
+   * Claims the run's handoff. Returns false when it was already handed off, so
+   * the caller must not send it again. `release` undoes a claim whose send failed.
+   */
+  claimHandoff(location: string, sessionID: string, runID: string, target: Handoff["target"], at = Date.now()): boolean {
+    const run = this.#requireRun(location, sessionID, runID)
+    if (run.handoff) return false
+    run.handoff = { target, at }
+    this.#touch()
+    return true
+  }
+
+  releaseHandoff(location: string, sessionID: string, runID: string): void {
+    const run = this.#requireRun(location, sessionID, runID)
+    if (!run.handoff) return
+    delete run.handoff
+    this.#touch()
   }
 
   /** Adds one turn's tokens and cost to the run's totals. */

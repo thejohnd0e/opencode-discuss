@@ -399,3 +399,48 @@ describe("per-location state", () => {
     expect(store.session(PROJECT, "ses_p").settings).toBeNull()
   })
 })
+
+describe("handoff claim", () => {
+  test("a run is handed off once, and the claim survives a restart", async () => {
+    const storage = memory()
+    const first = await DiscussionStore.open(storage)
+    first.setSettings("location-1", "session-a", settings())
+    const run = first.startRun("location-1", "session-a", "topic")
+    first.finishRun("location-1", "session-a", run.runID, "completed")
+    expect(first.claimHandoff("location-1", "session-a", run.runID, "build", 5)).toBe(true)
+    expect(first.claimHandoff("location-1", "session-a", run.runID, "plan")).toBe(false)
+    await first.flush()
+
+    const second = await DiscussionStore.open(storage)
+    expect(second.run("location-1", "session-a", run.runID)?.handoff).toEqual({ target: "build", at: 5 })
+    expect(second.claimHandoff("location-1", "session-a", run.runID, "build")).toBe(false)
+  })
+
+  test("a released claim (failed send) can be claimed again", async () => {
+    const store = await DiscussionStore.open(memory())
+    store.setSettings("location-1", "session-a", settings())
+    const run = store.startRun("location-1", "session-a", "topic")
+    store.finishRun("location-1", "session-a", run.runID, "completed")
+    expect(store.claimHandoff("location-1", "session-a", run.runID, "plan")).toBe(true)
+    store.releaseHandoff("location-1", "session-a", run.runID)
+    expect(store.run("location-1", "session-a", run.runID)?.handoff).toBeUndefined()
+    expect(store.claimHandoff("location-1", "session-a", run.runID, "plan")).toBe(true)
+  })
+
+  test("an invalid stored handoff is rejected by validation", () => {
+    expect(() =>
+      parseState({
+        version: 2,
+        revision: 1,
+        sessions: {
+          "location-1 session-a": {
+            location: "location-1",
+            sessionID: "session-a",
+            settings: settings(),
+            runs: [{ runID: "r", topic: "t", settings: settings(), status: "completed", createdAt: 1, messages: [], partial: null, handoff: { target: "chat", at: 1 } }],
+          },
+        },
+      }),
+    ).toThrow()
+  })
+})

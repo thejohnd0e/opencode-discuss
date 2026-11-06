@@ -66,7 +66,6 @@ export default Plugin.define({
     const directory = ctx.location.directory
 
     const registry = new TurnRegistry()
-    const submitted = new Set<string>()
     const host: SessionHost = {
       async create(input) {
         const created = await ctx.session.create({
@@ -443,10 +442,21 @@ export default Plugin.define({
           /* reported through not_confirmed below only when confirmation is blocked */
         }
         if (!confirm) return call.error("not_confirmed", "handoff requires explicit confirmation", { packet: text })
-        if (submitted.has(runID)) return { packet: text, path, submitted: true }
-        submitted.add(runID)
-        await ctx.session.switchAgent({ sessionID, agent: target })
-        await ctx.session.prompt({ sessionID, text })
+        // The claim is stored with the run, so a second Send, another TUI or a
+        // restarted server never submits the same result twice.
+        if (!store.claimHandoff(ctx.location.directory, sessionID, runID, target)) {
+          log("handoff-repeat", { sessionID, runID, target, previous: run.handoff?.target ?? null })
+          return { packet: text, path, submitted: false }
+        }
+        try {
+          await ctx.session.switchAgent({ sessionID, agent: target })
+          await ctx.session.prompt({ sessionID, text })
+        } catch (error) {
+          store.releaseHandoff(ctx.location.directory, sessionID, runID)
+          log("handoff-failed", { sessionID, runID, target, error: String((error as Error)?.message ?? error) })
+          throw error
+        }
+        log("handoff-sent", { sessionID, runID, target, length: text.length })
         return { packet: text, path, submitted: true }
       },
     })

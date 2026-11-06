@@ -56,7 +56,11 @@ export type Run = {
   error?: string
   errorKind?: "provider" | "python" | "timeout" | "cancelled" | "restart"
   usage?: Usage
+  /** Set once the result was sent to Plan/Build; it is never sent twice, even after a restart. */
+  handoff?: Handoff
 }
+
+export type Handoff = { target: "plan" | "build"; at: number }
 
 export type SessionRecord = {
   location: string

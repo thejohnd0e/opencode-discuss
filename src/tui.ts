@@ -839,6 +839,9 @@ export default Plugin.define({
               show({ title: "Discuss", message: "Stop the discussion before handing it off", variant: "warning" })
               return
             }
+            if (run.handoff) {
+              return void toast(`This result was already sent to ${run.handoff.target}; it is not sent twice. Start a new discussion to hand off again.`, "warning")
+            }
             const target = await dialog.select({
               title: "Hand off discussion to",
               options: [
@@ -876,8 +879,10 @@ export default Plugin.define({
               })) as unknown as { path: string; submitted: boolean }
               show({
                 title: "Discuss",
-                message: sent.submitted ? `Sent to ${target}. Saved: ${sent.path}` : `Saved: ${sent.path}`,
-                variant: "success",
+                message: sent.submitted
+                  ? `Sent to ${target}. Saved: ${sent.path}`
+                  : `Already sent earlier; not sent again. Saved: ${sent.path}`,
+                variant: sent.submitted ? "success" : "warning",
                 duration: TOAST_MS,
               })
             } catch (error) {

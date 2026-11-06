@@ -1,5 +1,5 @@
 import { describeUsage, ORCHESTRATOR_NOTE } from "./usage"
-import type { Run } from "./types"
+import { modelLabel, type Run } from "./types"
 
 const clip = (text: string, limit = 4000) =>
   text.length <= limit ? text : text.slice(0, limit).replace(/\s+\S*$/, "") + " …"
@@ -35,7 +35,7 @@ export function buildHandoff(run: Run): string {
     `# Discuss result: ${oneLine(run.topic)}`,
     "",
     `Status: ${run.status}`,
-    `Models: ${run.settings.a.providerID}/${run.settings.a.modelID} vs ${run.settings.b.providerID}/${run.settings.b.modelID}`,
+    `Models: ${modelLabel(run.settings.a)} vs ${modelLabel(run.settings.b)}`,
     `Mode: ${run.settings.mode} · rounds: ${run.settings.rounds} · max output per reply: ${run.settings.maxOutputTokens}`,
     `Replies: ${replies} of ${run.settings.rounds * 2}`,
     "",

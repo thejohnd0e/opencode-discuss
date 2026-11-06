@@ -66,4 +66,12 @@ describe("handoff packet", () => {
   test("is deterministic for the same run", () => {
     expect(buildHandoff(base)).toBe(buildHandoff(base))
   })
+
+  test("the models line keeps variants", () => {
+    const packet = buildHandoff({
+      ...base,
+      settings: { ...base.settings, a: { providerID: "deepseek", modelID: "flash", variant: "low" }, b: { providerID: "openai", modelID: "luna", variant: "medium" } },
+    })
+    expect(packet).toContain("Models: deepseek/flash#low vs openai/luna#medium")
+  })
 })

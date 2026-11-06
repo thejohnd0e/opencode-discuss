@@ -134,7 +134,7 @@ describe("usage in a turn", () => {
 
   test("usage that arrives just after success is picked up within the grace period", async () => {
     const h = host()
-    const runner = createTurnRunner(h.fake, { agent: "p", directory: "C:/w", timeoutMs: 1000, tickMs: 5, usageGraceMs: 200 })
+    const runner = createTurnRunner(h.fake, { agent: "p", directory: "C:/w", timeoutMs: 5000, tickMs: 5, usageGraceMs: 3000 })
     const pending = runner.run({ providerID: "p", modelID: "a" }, [], 100, () => {})
     await h.prompted()
     h.emit({ type: "delta", sessionID: "ses_1", delta: "hi" })

@@ -35,6 +35,8 @@ type Active = {
 }
 
 const PARTIAL_INTERVAL_MS = 150
+/** Start request IDs remembered for idempotent retries. */
+export const MAX_REMEMBERED_REQUESTS = 64
 
 export class DiscussionService {
   #deps: ServiceDeps
@@ -102,6 +104,12 @@ export class DiscussionService {
       }
       this.#active = active
       this.#requests.set(requestID, started.runID)
+      // Only recent request IDs matter for a retried start; keep the map bounded.
+      while (this.#requests.size > MAX_REMEMBERED_REQUESTS) {
+        const oldest = this.#requests.keys().next().value
+        if (oldest === undefined) break
+        this.#requests.delete(oldest)
+      }
 
       const options: RunnerStart = {
         rounds: settings.rounds,

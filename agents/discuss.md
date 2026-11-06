@@ -1,6 +1,7 @@
 ---
 description: Runs a structured two-model discussion and reports the result
 mode: primary
+color: "#22c55e"
 permissions:
   - action: edit
     resource: "*"

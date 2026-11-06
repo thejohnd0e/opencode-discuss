@@ -249,7 +249,9 @@ export function createRunner(options: RunnerOptions): Runner {
       })
       child = running
 
-      const decoder = new LineDecoder()
+      const decoder = new LineDecoder(undefined, (length) => {
+        stderrTail = (stderrTail + `\nrunner sent an overlong line (${length} characters); it was dropped`).slice(-4000)
+      })
       const utf8 = new StringDecoder("utf8")
       running.stdout?.on("data", (chunk: Buffer | string) => {
         try {

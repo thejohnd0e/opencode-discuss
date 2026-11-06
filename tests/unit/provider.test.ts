@@ -303,7 +303,34 @@ describe("line decoder", () => {
   })
 
   test("rejects an oversized line instead of buffering without bound", () => {
-    const decoder = new LineDecoder(16)
-    expect(() => decoder.push("x".repeat(20))).toThrow(/too long/)
+    const dropped: number[] = []
+    const decoder = new LineDecoder(16, (length) => dropped.push(length))
+    expect(decoder.push("x".repeat(20))).toEqual([])
+    expect(decoder.push("yy\nok\n")).toEqual(["ok"])
+    expect(dropped).toEqual([22])
+  })
+
+  test("an overlong line inside one chunk is dropped and its neighbours are kept", () => {
+    const dropped: number[] = []
+    const decoder = new LineDecoder(8, (length) => dropped.push(length))
+    expect(decoder.push("short\n" + "z".repeat(30) + "\nafter\n")).toEqual(["short", "after"])
+    expect(dropped).toEqual([30])
+  })
+
+  test("a line exactly at the limit passes, one character more does not", () => {
+    const dropped: number[] = []
+    const decoder = new LineDecoder(5, (length) => dropped.push(length))
+    expect(decoder.push("abcde\nabcdef\n")).toEqual(["abcde"])
+    expect(dropped).toEqual([6])
+  })
+
+  test("a partial line grows over the limit across chunks and is skipped to its newline", () => {
+    const dropped: number[] = []
+    const decoder = new LineDecoder(10, (length) => dropped.push(length))
+    expect(decoder.push("aaaaaa")).toEqual([])
+    expect(decoder.push("aaaaaa")).toEqual([])
+    expect(decoder.push("aaa")).toEqual([])
+    expect(decoder.push("a\nnext\n")).toEqual(["next"])
+    expect(dropped).toEqual([16])
   })
 })

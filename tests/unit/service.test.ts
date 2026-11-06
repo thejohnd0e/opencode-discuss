@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { DiscussionService, type ServiceEvent } from "../../src/discussion/service"
+import { DiscussionService, MAX_REMEMBERED_REQUESTS, type ServiceEvent } from "../../src/discussion/service"
 import { DiscussionStore } from "../../src/discussion/store"
 import type { Runner, RunnerEvent, RunnerFinished, RunnerStart } from "../../src/discussion/runner"
 import type { ModelRef, Settings } from "../../src/discussion/types"
@@ -315,5 +315,43 @@ describe("preflight in start", () => {
     }
     expect(created).toBe(0)
     expect(service.active("location-1")).toBeNull()
+  })
+})
+
+describe("request id memory", () => {
+  test("only the most recent start request ids are remembered", async () => {
+    const store = await DiscussionStore.open(memory())
+    store.setSettings("location-1", "session-a", settings)
+    const runners: FakeRunner[] = []
+    const service = new DiscussionService({
+      store,
+      location: "location-1",
+      verifySession: async () => true,
+      emit: () => {},
+      createRunner: (onEvent) => {
+        const runner = new FakeRunner()
+        runner.events.push(onEvent)
+        runners.push(runner)
+        return runner
+      },
+      python: "python",
+      script: "runner.py",
+      cwd: "C:/work",
+    })
+    const total = MAX_REMEMBERED_REQUESTS + 2
+    const runIDs: string[] = []
+    for (let index = 0; index < total; index++) {
+      const result = await service.start("session-a", "topic", `r-${index}`)
+      expect(result.ok).toBe(true)
+      if (result.ok) runIDs.push(result.runID)
+      runners.at(-1)!.finish({ status: "completed", messages: 0, stopped: false, exitCode: 0 })
+      for (let wait = 0; wait < 50 && service.active("location-1"); wait++) await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    const recent = await service.start("session-a", "topic", `r-${total - 1}`)
+    expect(recent.ok && recent.runID).toBe(runIDs[total - 1])
+    expect(runners).toHaveLength(total)
+    const forgotten = await service.start("session-a", "topic", "r-0")
+    expect(forgotten.ok && forgotten.runID).not.toBe(runIDs[0])
+    expect(runners).toHaveLength(total + 1)
   })
 })

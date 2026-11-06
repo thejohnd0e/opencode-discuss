@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { applySettingsArgs } from "../../src/ui/settings"
+import { applySettingsArgs, checkSettingsArgs } from "../../src/ui/settings"
 import type { Settings } from "../../src/discussion/types"
 
 const saved: Settings = {
@@ -46,5 +46,15 @@ describe("/discuss-settings arguments", () => {
   test("the saved settings object is not mutated", () => {
     applySettingsArgs(["rounds=1"], saved)
     expect(saved.rounds).toBe(2)
+  })
+})
+
+describe("checking arguments before a pair exists", () => {
+  test("valid arguments pass, typos and bad values are reported", () => {
+    expect(checkSettingsArgs(["rounds=2", "tokens=1000"])).toBeNull()
+    expect(checkSettingsArgs(["mode=debate"])).toBeNull()
+    expect(checkSettingsArgs(["rounds=0"])).toContain("rounds")
+    expect(checkSettingsArgs(["colour=red"])).toContain("Unknown")
+    expect(checkSettingsArgs(["tokens=abc"])).toContain("whole number")
   })
 })

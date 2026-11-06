@@ -62,3 +62,17 @@ export function applySettingsArgs(args: string[], current: Settings): SettingsCh
 export function describeSettings(settings: Settings): string {
   return `Mode: ${settings.mode} · rounds: ${settings.rounds} · max output: ${settings.maxOutputTokens} · ceiling: ${settings.rounds * 2} calls, ${settings.rounds * 2 * settings.maxOutputTokens} output tokens`
 }
+
+const PROBE: Settings = {
+  a: { providerID: "probe", modelID: "a" },
+  b: { providerID: "probe", modelID: "b" },
+  mode: "cooperative",
+  rounds: 1,
+  maxOutputTokens: MIN_OUTPUT_TOKENS,
+}
+
+/** Validates `key=value` arguments without saved settings; returns the reason, or null when they are valid. */
+export function checkSettingsArgs(args: string[]): string | null {
+  const result = applySettingsArgs(args, PROBE)
+  return result.ok ? null : result.reason
+}

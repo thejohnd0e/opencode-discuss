@@ -4,7 +4,7 @@ import { createElement, insert, setProp } from "@opentui/solid"
 import { createEffect, createRoot, createSignal, getOwner, on, runWithOwner, type Owner } from "solid-js"
 import { DiscussRpc } from "./rpc"
 import { sessionDirectory } from "./discussion/location"
-import { applySettingsArgs, describeSettings, SETTINGS_USAGE } from "./ui/settings"
+import { applySettingsArgs, checkSettingsArgs, describeSettings, SETTINGS_USAGE } from "./ui/settings"
 import { createLog, logPath, shape } from "./ui/log"
 import { panelStyle, speakerRole, statusRole, type PanelStyle } from "./ui/panel-style"
 import type { Run, Settings } from "./discussion/types"
@@ -685,7 +685,25 @@ export default Plugin.define({
             } catch (error) {
               return void toast(String((error as Error)?.message ?? error))
             }
-            if (!saved) return void toast("Choose the models first: /discuss-models <A> <B>", "warning")
+            if (!saved) {
+              // No pair in this session yet (e.g. a new session after a restart).
+              // Check the arguments first, then get a pair the usual way (offer
+              // the previous pair, or choose), and apply the arguments on top, so
+              // the typed rounds/tokens are not lost (live finding 2026-11-06).
+              if (args.length > 0) {
+                const problem = checkSettingsArgs(args)
+                if (problem) return void toast(problem, "warning")
+              }
+              const offered = await offerLast(sessionID)
+              if (offered === "cancel") return void toast("Settings not changed: no models chosen for this session.", "warning")
+              if (offered === "choose") await pickModels(sessionID)
+              try {
+                saved = ((await discuss.settingsGet({ sessionID })) as unknown as { settings: Settings | null }).settings
+              } catch (error) {
+                return void toast(String((error as Error)?.message ?? error))
+              }
+              if (!saved) return void toast("Settings not changed: no models chosen for this session.", "warning")
+            }
             if (args.length === 0) {
               return void toast(`${modelText(saved)}\n${describeSettings(saved)}\n${SETTINGS_USAGE}`, "success")
             }

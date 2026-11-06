@@ -473,7 +473,7 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
 
 Do these after Task 11, highest priority first, and reorder them if live findings say otherwise.
 
-1. [ ] **Hard kill within 5 seconds of stop.** Sequence: stop command, then abort, then a 5-second timer, then kill. On Windows use `taskkill /PID <pid> /T /F` so that child processes die too. Test with a fake child that ignores stop.
+1. [x] (done 2026-11-06, offline) **Hard kill within 5 seconds of stop.** `stop()` arms a timer (`killAfterMs`, default 5000); if the child has not exited, `terminateTree` runs (`taskkill /PID /T /F` on Windows, SIGKILL elsewhere) and the run is released after 1 s even if the pipes never close. `dispose()` also kills the whole tree. 2 new tests (129 unit pass). Live check of a wedged child not done. Sequence: stop command, then abort, then a 5-second timer, then kill. On Windows use `taskkill /PID <pid> /T /F` so that child processes die too. Test with a fake child that ignores stop.
 2. [ ] **Preflight before start:** the saved model still exists in `ctx.model.list()`, it is chat-capable, and `maxOutputTokens` ≤ the model's advertised output limit when that limit is known. Return `model_unavailable` or `invalid_settings` on start rather than failing mid-round.
 3. [ ] **`tests/unit/tui-state.test.ts`:** cover subscribe-before-snapshot, duplicate and old revisions, revision gaps that trigger a refetch, and session switching. Extract the reducer from `src/tui.ts` if needed so it is testable without OpenTUI.
 4. [ ] **Delete `tests/live-plugin/`.** The harness is obsolete and imports a missing `activate`. Update the README and the plan's file list accordingly.

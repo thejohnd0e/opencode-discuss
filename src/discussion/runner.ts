@@ -1,4 +1,4 @@
-import { spawn as nodeSpawn } from "node:child_process"
+import { spawn as nodeSpawn, spawnSync } from "node:child_process"
 import { StringDecoder } from "node:string_decoder"
 import type { Readable } from "node:stream"
 import { LineDecoder } from "./line"
@@ -33,10 +33,11 @@ export type RunnerStart = {
 }
 
 type Child = {
+  pid?: number
   stdin: ({ write(text: string): boolean; on?(event: "error", listener: (error: Error) => void): unknown } | null)
   stdout: Readable | null
   stderr: Readable | null
-  kill(): void
+  kill(signal?: string): void
   on(event: "exit", listener: (code: number | null) => void): unknown
   on(event: "close", listener: (code: number | null) => void): unknown
   on(event: "error", listener: (error: Error) => void): unknown
@@ -58,6 +59,27 @@ export type RunnerOptions = {
   spawn?: (command: string[], options: Record<string, unknown>) => Child
   env?: Record<string, string | undefined>
   outDir: string
+  /** How long a stopped child may keep running before it is killed. Default 5000. */
+  killAfterMs?: number
+  /** Kills the child and its descendants. Replaceable for tests. */
+  terminate?: (child: Child) => void
+}
+
+/** Kill the child together with anything it started (Windows has no process groups by default). */
+function terminateTree(child: Child) {
+  try {
+    if (process.platform === "win32" && child.pid) {
+      spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, timeout: 3000 })
+      return
+    }
+    child.kill("SIGKILL")
+  } catch {
+    try {
+      child.kill()
+    } catch {
+      /* already gone */
+    }
+  }
 }
 
 export type Runner = {
@@ -80,13 +102,47 @@ export function createRunner(options: RunnerOptions): Runner {
   let exitCode: number | null = null
   let exited = false
   let stderrTail = ""
+  let killTimer: ReturnType<typeof setTimeout> | null = null
+  let settleTimer: ReturnType<typeof setTimeout> | null = null
+  const terminate = options.terminate ?? terminateTree
+  const killAfterMs = options.killAfterMs ?? 5000
   let resolveFinished: ((value: RunnerFinished) => void) | null = null
   let finished = new Promise<RunnerFinished>((resolve) => {
     resolveFinished = resolve
   })
 
+  const clearTimers = () => {
+    if (killTimer) clearTimeout(killTimer)
+    if (settleTimer) clearTimeout(settleTimer)
+    killTimer = null
+    settleTimer = null
+  }
+
+  /** After a stop the child gets `killAfterMs` to finish; then it is killed. */
+  const armKill = () => {
+    if (killTimer || !child) return
+    const target = child
+    killTimer = setTimeout(() => {
+      killTimer = null
+      if (exited || child !== target) return
+      stderrTail += "\nrunner did not exit after stop; it was killed"
+      terminate(target)
+      // If the pipes never close, do not leave the run hanging.
+      settleTimer = setTimeout(() => {
+        settleTimer = null
+        if (exited) return
+        exited = true
+        child = null
+        settle()
+      }, 1000)
+      settleTimer.unref?.()
+    }, killAfterMs)
+    killTimer.unref?.()
+  }
+
   const settle = () => {
     if (!exited) return
+    clearTimers()
     const status = stopRequested || doneEvent?.stopped ? "cancelled" : exitCode === 0 && doneEvent ? "completed" : "failed"
     resolveFinished?.({
       status,
@@ -238,6 +294,7 @@ export function createRunner(options: RunnerOptions): Runner {
       stopRequested = true
       controller.abort()
       send({ type: "command", command: "stop" })
+      armKill()
     },
 
     abort() {
@@ -254,11 +311,8 @@ export function createRunner(options: RunnerOptions): Runner {
 
     dispose() {
       controller.abort()
-      try {
-        child?.kill()
-      } catch {
-        /* already gone */
-      }
+      clearTimers()
+      if (child) terminate(child)
       child = null
     },
 

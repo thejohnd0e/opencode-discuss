@@ -241,6 +241,52 @@ describe("subprocess runner", () => {
     expect(child.killed).toBe(true)
   })
 
+  function withKill(killAfterMs: number) {
+    const child = fakeChild()
+    const killed: unknown[] = []
+    const runner = createRunner({
+      python: "python",
+      script: "runner.py",
+      cwd: "C:/work",
+      turnTimeoutMs: 1000,
+      outDir: "C:/out",
+      killAfterMs,
+      terminate: (target) => {
+        killed.push(target)
+      },
+      spawn: () => child as never,
+      generate: async () => ({ text: "x" }),
+      onEvent: () => {},
+    })
+    runner.start("Topic", { rounds: 1, maxOutputTokens: 100, labels: { a: "Left", b: "Right" } })
+    return { child, killed, runner }
+  }
+
+  test("a child that ignores stop is killed after the grace period and the run settles", async () => {
+    const { killed, runner } = withKill(20)
+    let result: any = null
+    runner.finished.then((value) => {
+      result = value
+    })
+    runner.stop()
+    expect(killed.length).toBe(0)
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    expect(killed.length).toBe(1)
+    // the pipes never closed: the run is still released shortly afterwards
+    await new Promise((resolve) => setTimeout(resolve, 1100))
+    expect(result?.status).toBe("cancelled")
+    expect(result?.stopped).toBe(true)
+  })
+
+  test("a child that exits in time is not killed", async () => {
+    const { child, killed, runner } = withKill(30)
+    runner.stop()
+    child.push({ type: "done", messages: 0, stopped: true })
+    child.exit(0)
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    expect(killed.length).toBe(0)
+  })
+
   test("arguments carry the topic, limits and model identities", () => {
     let args: string[] = []
     const child = fakeChild()

@@ -196,15 +196,27 @@ class BridgeProtocolTest(unittest.TestCase):
         host.wait_for("done")
         host.finish()
 
-    def test_every_turn_is_told_to_answer_in_the_language_of_the_topic(self):
-        host = self.host(rounds=1)
+    def test_an_english_topic_gets_an_english_language_rule_on_every_turn(self):
+        host = self.host("--topic", "Rewrite or refactor?", rounds=1)
+        host.wait_for("started")
+        first = host.wait_for("generate")
+        self.assertIn("same language as the topic", first["messages"][0]["content"])
+        self.assertIn("Rewrite or refactor?", first["messages"][0]["content"])
+        host.reply(first, "a")
+        second = host.wait_for("generate")
+        self.assertIn("not in Russian", second["messages"][0]["content"])
+        host.reply(second, "b")
+        host.wait_for("done")
+        host.finish()
+
+    def test_a_russian_topic_gets_the_russian_rule(self):
+        host = self.host("--topic", "Переписать или рефакторить?", rounds=1)
         host.wait_for("started")
         first = host.wait_for("generate")
         self.assertIn("языке, на котором сформулирована тема", first["messages"][0]["content"])
+        self.assertNotIn("not in Russian", first["messages"][0]["content"])
         host.reply(first, "a")
-        second = host.wait_for("generate")
-        self.assertIn("языке, на котором сформулирована тема", second["messages"][0]["content"])
-        host.reply(second, "b")
+        host.reply(host.wait_for("generate"), "b")
         host.wait_for("done")
         host.finish()
 
@@ -236,7 +248,7 @@ class BridgeProtocolTest(unittest.TestCase):
         self.assertIn("left position", prompt)
         self.assertIn("right position", prompt)
         self.assertIn("Разногласия", request["messages"][0]["content"])
-        self.assertIn("языке, на котором сформулирована тема", request["messages"][0]["content"])
+        self.assertIn("same language as the topic", request["messages"][0]["content"])
         host.reply(request, "Agreed: x. Disagreed: y. Next steps: 1. z", usage={"output": 9})
 
         host.wait_for("usage")

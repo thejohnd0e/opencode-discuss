@@ -562,6 +562,8 @@ went unanswered.
 - [ ] Optional, off by default (costs a call): re-ask once when a reply did not
   answer the opponent.
 
+- [x] Found live 2026-11-07 (run `9cf52f39`, English topic): one model and its conclusion answered in Russian, because the Russian-worded "answer in the topic's language" rule is weaker than the Russian instructions. Now the rule quotes the topic and, for a topic in Latin script, is written in English ("not in Russian"); it is recomputed when the topic changes.
+
 ### 15b: Claim ledger
 
 - [ ] Each reply ends with a short list of its own numbered claims (A1, A2, B1…);

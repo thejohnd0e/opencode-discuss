@@ -53,12 +53,22 @@ def emit(**payload):
     sys.stdout.flush()
 
 
-# The built-in prompts are Russian, so without this rule an English topic got
-# Russian replies (live 2026-11-06). Replies follow the language of the topic.
-LANGUAGE_RULE = (
-    "\n\nОтвечай на том же языке, на котором сформулирована тема дискуссии, "
-    "а не на языке этой инструкции."
-)
+# The built-in prompts are Russian. A rule "answer in the topic's language"
+# written in Russian was not enough: on an English topic one model still
+# answered in Russian (live 2026-11-07). So the rule names the topic and, for a
+# topic in Latin script, is itself written in English.
+CYRILLIC = re.compile(r"[\u0400-\u04FF]")
+LATIN = re.compile(r"[A-Za-z\u00C0-\u024F]")
+
+
+def language_rule(topic):
+    cyrillic = len(CYRILLIC.findall(topic))
+    latin = len(LATIN.findall(topic))
+    if latin > cyrillic:
+        return ("\n\nIMPORTANT: write your whole reply in the same language as the topic "
+                f"(\u201c{topic.strip()}\u201d), not in Russian, even though these instructions are in Russian. "
+                "Translate any required headings into that language too.")
+    return "\n\nОтвечай на том же языке, на котором сформулирована тема дискуссии."
 
 CONCLUSION_SYSTEM = (
     "Ты — {me}. Дискуссия с {other} закончена. Подведи общий итог для человека, "
@@ -157,7 +167,7 @@ def conclusion_messages(me, other, topic, history):
         + "\n\nНапиши итог."
     )
     return [
-        {"role": "system", "content": CONCLUSION_SYSTEM.format(me=me, other=other) + LANGUAGE_RULE},
+        {"role": "system", "content": CONCLUSION_SYSTEM.format(me=me, other=other) + language_rule(topic)},
         {"role": "user", "content": user},
     ]
 
@@ -320,7 +330,7 @@ def main():
         "\n\nРежим: критический разбор. Ищи конкретные риски, слабые места и условия,"
         " при которых предложение не сработает. Не спорь ради спора."
         if args.critical else ""
-    ) + LANGUAGE_RULE
+    )
     errors = 0
     for turn_index in range(args.rounds * 2):
         dialogue.drain_controls()
@@ -332,8 +342,10 @@ def main():
         opponent_last = next((turn for turn in reversed(dialogue.history)
                               if turn["speaker"] == other["name"]), None)
         answer_rule = DEBATE_ANSWER_RULE.format(other=other["name"]) if args.debate and opponent_last else ""
+        # The topic can change during the run, so the language rule follows it.
+        context = critical_context + language_rule(dialogue.topic) + answer_rule
         messages = engine.build_messages(side["name"], other["name"], dialogue.history,
-                                         dialogue.topic, critical_context + answer_rule, **mode_kwargs)
+                                         dialogue.topic, context, **mode_kwargs)
         started = time.time()
         buffer = {"text": "", "sent": 0.0}
 

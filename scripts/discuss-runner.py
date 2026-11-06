@@ -152,10 +152,31 @@ def quote_found(quote, source):
     return True
 
 
+def split_quoted(text):
+    """(own text, quoted text) of a reply: lines starting with `>` are quotes of someone else."""
+    own, quoted = [], []
+    for line in text.splitlines():
+        (quoted if QUOTE_LINE.match(line) else own).append(line)
+    return "\n".join(own), "\n".join(quoted)
+
+
 def check_answer(reply, opponent):
-    """How many quotes the reply has, and how many are really in the opponent's reply."""
+    """How many quotes the reply has, and how many are in the opponent's own words.
+
+    Only the opponent's own text counts. A quote found only among the
+    opponent's `>` lines is the replier's own earlier words that the opponent
+    had quoted: quoting them back is not an answer (live 2026-11-07, run
+    3860835f, found by a reviewer). Those are counted as `recycled`.
+    """
+    own, quoted = split_quoted(opponent)
+    matched = recycled = 0
     quotes = extract_quotes(reply)
-    return {"quoted": len(quotes), "matched": sum(1 for quote in quotes if quote_found(quote, opponent))}
+    for quote in quotes:
+        if quote_found(quote, own):
+            matched += 1
+        elif quoted and quote_found(quote, quoted):
+            recycled += 1
+    return {"quoted": len(quotes), "matched": matched, "recycled": recycled}
 
 
 # Claim ledger (Task 15b): in a debate every reply ends with a service block

@@ -563,6 +563,8 @@ went unanswered.
 
 - [x] Found live 2026-11-07 (run `9cf52f39`, English topic): one model and its conclusion answered in Russian, because the Russian-worded "answer in the topic's language" rule is weaker than the Russian instructions. Now the rule quotes the topic and, for a topic in Latin script, is written in English ("not in Russian"); it is recomputed when the topic changes.
 
+- [x] Quote laundering closed (2026-11-07, found by a reviewer in run `3860835f`): A's round-2 quotes were its own round-1 sentences that B had quoted, and the check counted them as answers (2/2). Now only the opponent's own text (without its `>` lines) counts; a quote found only among the opponent's quotes is `recycled` and the panel says "quotes its own words back, not the opponent's". Replaying that run: A round 2 is now 0 matched, 2 recycled; the other four replies are unchanged at 2/2. Regression tests in Python and TS; 32 Python, 207 unit.
+
 ### 15b: Claim ledger — done, verified live 2026-11-07
 
 - [x] Each reply ends with a short list of its own numbered claims (A1, A2, B1…);

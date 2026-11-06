@@ -324,37 +324,48 @@ class AnswerCheckTest(unittest.TestCase):
 
     def test_exact_quote_with_other_quote_marks_and_case(self):
         self.assertEqual(self.check("> «поэтапный рефакторинг, обычно безопаснее!»\nНе всегда."),
-                         {"quoted": 1, "matched": 1})
+                         {"quoted": 1, "matched": 1, "recycled": 0})
 
     def test_quote_with_an_ellipsis_and_over_two_lines(self):
         self.assertEqual(self.check("> он сохраняет работающие функции … снижает риск\nОтвет"),
-                         {"quoted": 1, "matched": 1})
+                         {"quoted": 1, "matched": 1, "recycled": 0})
         self.assertEqual(self.check("> позволяет проверять каждое\n> изменение и снижает риск\nОтвет"),
-                         {"quoted": 2, "matched": 2})
+                         {"quoted": 2, "matched": 2, "recycled": 0})
 
     def test_two_quotes_on_adjacent_lines_are_two_quotes(self):
         self.assertEqual(self.check("> «Поэтапный рефакторинг обычно безопаснее»\n"
                                     "> «снижает риск сорвать сроки»\nОтвет"),
-                         {"quoted": 2, "matched": 2})
+                         {"quoted": 2, "matched": 2, "recycled": 0})
 
     def test_a_one_word_slip_is_tolerated(self):
         self.assertEqual(self.check("> он сохраняет рабочие функции, позволяет проверять каждое изменение\nОтвет"),
-                         {"quoted": 1, "matched": 1})
+                         {"quoted": 1, "matched": 1, "recycled": 0})
 
     def test_paraphrase_and_invented_quotes_do_not_match(self):
         self.assertEqual(self.check("> постепенный рефакторинг надёжнее и бережёт сроки\nОтвет"),
-                         {"quoted": 1, "matched": 0})
+                         {"quoted": 1, "matched": 0, "recycled": 0})
         self.assertEqual(self.check("> переписывание всегда дешевле в долгосрочной перспективе\nОтвет"),
-                         {"quoted": 1, "matched": 0})
+                         {"quoted": 1, "matched": 0, "recycled": 0})
 
     def test_no_quote_and_too_short_quotes_count_as_none(self):
-        self.assertEqual(self.check("Я считаю, что переписать лучше."), {"quoted": 0, "matched": 0})
-        self.assertEqual(self.check("> да\nНет."), {"quoted": 0, "matched": 0})
+        self.assertEqual(self.check("Я считаю, что переписать лучше."), {"quoted": 0, "matched": 0, "recycled": 0})
+        self.assertEqual(self.check("> да\nНет."), {"quoted": 0, "matched": 0, "recycled": 0})
+
+    def test_quoting_back_your_own_words_from_the_opponents_quotes_does_not_count(self):
+        # Regression, live 2026-11-07 run 3860835f: A quoted its own round-1
+        # sentences that B had quoted, and the check counted them as answers.
+        own_words = "У Трампа такого ядра нет — есть стиль."
+        opponent = (f"> «{own_words}»\n"
+                    "Это не доказывает бессмысленность метафоры: она меняет рамку прочтения.")
+        reply = f"> «{own_words}»\nПринимаю поправку."
+        self.assertEqual(self.runner.check_answer(reply, opponent), {"quoted": 1, "matched": 0, "recycled": 1})
+        honest = "> «она меняет рамку прочтения»\nПринимаю."
+        self.assertEqual(self.runner.check_answer(honest, opponent), {"quoted": 1, "matched": 1, "recycled": 0})
 
     def test_two_quotes_one_real(self):
         self.assertEqual(self.check("> Поэтапный рефакторинг обычно безопаснее\nДа.\n\n"
                                     "> выдуманная цитата которой нет вообще\nНет."),
-                         {"quoted": 2, "matched": 1})
+                         {"quoted": 2, "matched": 1, "recycled": 0})
 
 
 class LedgerTest(unittest.TestCase):
@@ -461,7 +472,7 @@ class DebateAnswerProtocolTest(unittest.TestCase):
         self.assertIn("дословных цитат", second["messages"][0]["content"])
         host.reply(second, "> рефакторинг по шагам безопаснее\nНе всегда: долги копятся.")
         message = host.wait_for("message")
-        self.assertEqual(message["check"], {"quoted": 1, "matched": 1})
+        self.assertEqual(message["check"], {"quoted": 1, "matched": 1, "recycled": 0})
         host.wait_for("done")
         host.finish()
 

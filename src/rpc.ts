@@ -40,7 +40,7 @@ const message = object(
     text: { type: "string" },
     seconds: { type: "number" },
     kind: { type: "string", enum: ["conclusion"] },
-    check: object({ quoted: { type: "number" }, matched: { type: "number" } }, ["quoted", "matched"]),
+    check: object({ quoted: { type: "number" }, matched: { type: "number" }, recycled: { type: "number" } }, ["quoted", "matched"]),
     ledger: object(
       {
         claims: { type: "array", items: object({ id: { type: "string" }, text: { type: "string" } }, ["id", "text"]) },

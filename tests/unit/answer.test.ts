@@ -30,6 +30,19 @@ describe("answer note", () => {
     })
   })
 
+  test("quoting back one's own words is a warning of its own", () => {
+    expect(answerNote({ quoted: 2, matched: 0, recycled: 2 })).toEqual({
+      text: "Quotes its own words back, not the opponent's: may not answer their arguments",
+      warn: true,
+    })
+    expect(answerNote({ quoted: 2, matched: 1, recycled: 1 })).toEqual({
+      text: "Answers 1 point of the opponent; 1 quote is its own words back, not the opponent's",
+      warn: true,
+    })
+    expect(validAnswerCheck({ quoted: 2, matched: 1, recycled: 1 })).toBe(true)
+    expect(validAnswerCheck({ quoted: 2, matched: 2, recycled: 1 })).toBe(false)
+  })
+
   test("all quotes real is a quiet confirmation", () => {
     expect(answerNote({ quoted: 2, matched: 2 })).toEqual({ text: "Answers 2 points of the opponent", warn: false })
   })

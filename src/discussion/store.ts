@@ -1,5 +1,5 @@
 import { addUsage, type StepUsage } from "./usage"
-import { validAnswerCheck } from "./answer"
+import { cleanAnswerCheck, validAnswerCheck } from "./answer"
 import { cleanLedger, validLedger } from "./ledger"
 import { randomUUID } from "node:crypto"
 import {
@@ -96,7 +96,7 @@ function message(value: unknown, where: string): Message {
     text,
     ...(seconds === undefined ? {} : { seconds }),
     ...(kind === undefined ? {} : { kind }),
-    ...(check === undefined ? {} : { check: { quoted: check.quoted, matched: check.matched } }),
+    ...(check === undefined ? {} : { check: cleanAnswerCheck(check) }),
     ...(ledger === undefined ? {} : { ledger: cleanLedger(ledger) }),
   }
 }

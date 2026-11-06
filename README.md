@@ -226,8 +226,10 @@ quotes from the opponent's last reply (lines starting with `>`), each answered:
 rebutted with a reason, or accepted. Only then comes at most one new argument.
 This keeps a debate from turning into two parallel monologues.
 
-The quotes are checked against the opponent's reply (quote marks, case and a
+The quotes are checked against the opponent's own words (quote marks, case and a
 slipped word do not matter; a paraphrase or an invented quote does not count).
+Lines the opponent itself quoted do not count either: quoting your own earlier
+words back from the opponent's reply is flagged as such, not as an answer.
 The panel shows "✓ Answers 2 points of the opponent", or a warning when a reply
 quoted nothing or quoted something the opponent never said; the handoff flags
 such replies too. No extra request is made for this.

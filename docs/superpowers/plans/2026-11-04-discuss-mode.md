@@ -533,6 +533,45 @@ Replies follow the language of the topic, without a separate setting.
 - [ ] Later, not in this task: a second side reviewing the conclusion
   ("what is distorted?"), and a structured "project plan" mode.
 
+## Task 15: Debate that answers the opponent (requested 2026-11-07)
+
+Problem: `debate` relies on a prompt request to dispute concrete points.
+Nothing checks it, so over several rounds it can turn into two parallel
+monologues, and neither the panel nor the conclusion can see which arguments
+went unanswered.
+
+### 15a: Quote-and-answer turns, checked
+
+- [ ] In `debate` mode, every turn after the opponent has spoken starts with one
+  or two **verbatim quotes** from the opponent's last reply, each on its own
+  line starting with `> `, each followed by the answer to it (rebut with a
+  reason, or accept). Then at most one new argument. Prompt only, no extra call.
+- [ ] The Python runner checks each quote against the opponent's last reply
+  (tolerant to quote marks, case, spacing and small edits) and attaches
+  `check: { quoted, matched }` to the message.
+- [ ] The panel marks a reply that quoted nothing, or whose quotes are not in
+  the opponent's reply: "did not answer the opponent's arguments". A checked
+  reply shows how many points it answered.
+- [ ] The handoff notes replies that did not answer the opponent.
+- [ ] `Message.check` in the store and the RPC schema.
+- [ ] `cooperative` and `critical` unchanged; the first reply of a run has
+  nothing to answer and is not checked.
+- [ ] Tests: quote extraction and matching, prompt rule only in debate and only
+  with an opponent reply, schema, panel/handoff text. Live: one debate of
+  2 rounds (4 replies, about $0.002).
+- [ ] Optional, off by default (costs a call): re-ask once when a reply did not
+  answer the opponent.
+
+### 15b: Claim ledger
+
+- [ ] Each reply ends with a short list of its own numbered claims (A1, A2, B1…);
+  the opponent must close open claims by number (rebutted / accepted).
+- [ ] The runner keeps each claim's state (open, rebutted, accepted); a reply
+  whose ledger block cannot be parsed is kept and marked.
+- [ ] Panel: "answers A2, A3; leaves A1 open". Conclusion built from the ledger:
+  claims that stood, were rebutted, or were never answered.
+- [ ] Live: a debate of 3 rounds.
+
 ## Phase 2 delivery checkpoints
 
 1. **Blockers fixed:** Task 9, offline green, no configuration touched. — done 2026-11-06

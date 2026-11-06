@@ -2,7 +2,7 @@ import type { Runner, RunnerEvent, RunnerFinished, RunnerStart } from "./runner"
 import { DiscussionStore } from "./store"
 import type { PreflightFailure } from "./preflight"
 import type { StepUsage } from "./usage"
-import { modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
+import { dialogueReplies, hasConclusion, isDialogueReply, modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
 
 export type ServiceEvent = {
   sessionID: string
@@ -117,6 +117,7 @@ export class DiscussionService {
         mode: settings.mode,
         labels,
         models: { a: spec(settings.a), b: spec(settings.b) },
+        ...(hasConclusion(settings) ? { conclusion: settings.conclusion as "a" | "b" } : {}),
       }
       this.#emit(sessionID, started.runID, "started", { topic: started.topic, settings })
       runner.start(started.topic, options)
@@ -240,7 +241,13 @@ export class DiscussionService {
     switch (event.type) {
       case "delta": {
         const speaker = this.#speaker(event.speaker, labels)
-        active.partial.pending = { speaker, label: this.#labelFor(speaker, labels), round, text: event.text }
+        active.partial.pending = {
+          speaker,
+          label: this.#labelFor(speaker, labels),
+          round,
+          text: event.text,
+          ...(event.conclusion ? { kind: "conclusion" as const } : {}),
+        }
         this.#schedulePartial(active, sessionID, runID)
         this.#emit(sessionID, runID, "delta", { speaker, round, text: event.text })
         return
@@ -253,8 +260,14 @@ export class DiscussionService {
           round: event.round,
           text: event.text,
           ...(event.seconds === undefined ? {} : { seconds: event.seconds }),
+          ...(event.conclusion ? { kind: "conclusion" as const } : {}),
         })
-        this.#emit(sessionID, runID, "message", { speaker, round: event.round, text: event.text })
+        this.#emit(sessionID, runID, "message", {
+          speaker,
+          round: event.round,
+          text: event.text,
+          ...(event.conclusion ? { kind: "conclusion" } : {}),
+        })
         return
       }
       case "control": {
@@ -324,14 +337,17 @@ export class DiscussionService {
     let status = finished.status
     let error: string | undefined
     if (status === "completed") {
-      const expected = run.settings.rounds * 2
-      const replies = run.messages.filter((message) => message.speaker === "a" || message.speaker === "b").length
+      const expected = dialogueReplies(run.settings)
+      const replies = run.messages.filter(isDialogueReply).length
       if (replies === 0) {
         status = "failed"
         error = "no replies were produced"
       } else if (replies < expected) {
         status = "failed"
         error = run.error ?? `incomplete discussion: ${replies} of ${expected} replies`
+      } else if (hasConclusion(run.settings) && !run.messages.some((message) => message.kind === "conclusion")) {
+        status = "failed"
+        error = run.error ?? "the discussion finished, but the conclusion was not written"
       }
     }
 

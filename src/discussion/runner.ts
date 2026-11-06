@@ -7,8 +7,8 @@ import type { Mode, Status } from "./types"
 
 export type RunnerEvent =
   | { type: "started"; a: string; b: string; topic: string; rounds: number; models: string[]; bridge?: boolean }
-  | { type: "message"; speaker: string; round: number; text: string; seconds?: number }
-  | { type: "delta"; speaker: string; round: number; text: string }
+  | { type: "message"; speaker: string; round: number; text: string; seconds?: number; conclusion?: boolean }
+  | { type: "delta"; speaker: string; round: number; text: string; conclusion?: boolean }
   | { type: "control"; command: string; text?: string }
   | { type: "transcript"; path: string; raw?: string }
   | { type: "error"; message: string; round?: number }
@@ -30,6 +30,8 @@ export type RunnerStart = {
   mode?: Mode
   labels: { a: string; b: string }
   models?: { a: string; b: string }
+  /** Side that writes the joint conclusion after the rounds. */
+  conclusion?: "a" | "b"
 }
 
 type Child = {
@@ -241,6 +243,7 @@ export function createRunner(options: RunnerOptions): Runner {
       ]
       if (startOptions.mode === "debate") command.push("--debate")
       if (startOptions.mode === "critical") command.push("--critical")
+      if (startOptions.conclusion) command.push("--conclusion", startOptions.conclusion)
 
       const running = spawn(command, {
         cwd: options.cwd,

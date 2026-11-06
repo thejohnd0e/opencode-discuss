@@ -18,6 +18,8 @@ import {
   type StoredState,
   type Usage,
   type Handoff,
+  type Conclusion,
+  CONCLUSIONS,
 } from "./types"
 import { LEGACY_STATE_KEY, stateKey } from "./location"
 
@@ -58,12 +60,15 @@ export function validateSettings(value: unknown): Settings {
   ) {
     fail(`settings.maxOutputTokens must be an integer between ${MIN_OUTPUT_TOKENS} and ${MAX_OUTPUT_TOKENS}`)
   }
+  const conclusion = value.conclusion
+  if (conclusion !== undefined && !CONCLUSIONS.includes(conclusion as Conclusion)) fail("settings.conclusion is invalid")
   return {
     a: modelRef(value.a, "settings.a"),
     b: modelRef(value.b, "settings.b"),
     mode: mode as Mode,
     rounds,
     maxOutputTokens,
+    ...(conclusion === undefined || conclusion === "none" ? {} : { conclusion: conclusion as Conclusion }),
   }
 }
 
@@ -76,9 +81,16 @@ function message(value: unknown, where: string): Message {
   if (typeof text !== "string") fail(`${where}.text is required`)
   const seconds = value.seconds
   if (seconds !== undefined && typeof seconds !== "number") fail(`${where}.seconds is invalid`)
-  return seconds === undefined
-    ? { speaker: speaker as Message["speaker"], label, round, text }
-    : { speaker: speaker as Message["speaker"], label, round, text, seconds }
+  const kind = value.kind
+  if (kind !== undefined && kind !== "conclusion") fail(`${where}.kind is invalid`)
+  return {
+    speaker: speaker as Message["speaker"],
+    label,
+    round,
+    text,
+    ...(seconds === undefined ? {} : { seconds }),
+    ...(kind === undefined ? {} : { kind }),
+  }
 }
 
 function partial(value: unknown, where: string): PartialMessage | null {
@@ -88,11 +100,13 @@ function partial(value: unknown, where: string): PartialMessage | null {
   if (typeof value.label !== "string") fail(`${where}.label is required`)
   if (typeof value.round !== "number" || !Number.isInteger(value.round) || value.round < 1) fail(`${where}.round is invalid`)
   if (typeof value.text !== "string") fail(`${where}.text is required`)
+  if (value.kind !== undefined && value.kind !== "conclusion") fail(`${where}.kind is invalid`)
   return {
     speaker: value.speaker as PartialMessage["speaker"],
     label: value.label,
     round: value.round,
     text: value.text,
+    ...(value.kind === "conclusion" ? { kind: "conclusion" as const } : {}),
   }
 }
 

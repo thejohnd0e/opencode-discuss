@@ -1,8 +1,10 @@
-import { MAX_OUTPUT_TOKENS, MAX_ROUNDS, MIN_OUTPUT_TOKENS, MODES, type Mode, type Settings } from "../discussion/types"
+import { callBound, CONCLUSIONS, MAX_OUTPUT_TOKENS, MAX_ROUNDS, MIN_OUTPUT_TOKENS, MODES, type Conclusion, type Mode, type Settings } from "../discussion/types"
 
-export const SETTINGS_USAGE = `Usage: /discuss-settings rounds=1..${MAX_ROUNDS} tokens=${MIN_OUTPUT_TOKENS}..${MAX_OUTPUT_TOKENS} mode=${MODES.join("|")}`
+export const SETTINGS_USAGE = `Usage: /discuss-settings rounds=1..${MAX_ROUNDS} tokens=${MIN_OUTPUT_TOKENS}..${MAX_OUTPUT_TOKENS} mode=${MODES.join("|")} conclusion=${CONCLUSIONS.join("|")}`
 
-const KEYS: Record<string, "rounds" | "maxOutputTokens" | "mode"> = {
+const KEYS: Record<string, "rounds" | "maxOutputTokens" | "mode" | "conclusion"> = {
+  conclusion: "conclusion",
+  summary: "conclusion",
   rounds: "rounds",
   round: "rounds",
   r: "rounds",
@@ -35,6 +37,15 @@ export function applySettingsArgs(args: string[], current: Settings): SettingsCh
     if (seen.has(key)) return { ok: false, reason: `“${match[1]}” is given twice` }
     seen.add(key)
     const value = match[2].trim()
+    if (key === "conclusion") {
+      const raw = value.toLowerCase()
+      const choice = (raw === "off" || raw === "no" ? "none" : raw) as Conclusion
+      if (!CONCLUSIONS.includes(choice)) return { ok: false, reason: `conclusion must be one of ${CONCLUSIONS.join(", ")}` }
+      if (choice === "none") delete next.conclusion
+      else next.conclusion = choice
+      changed.push(choice === "none" ? "no conclusion" : `conclusion by ${choice.toUpperCase()}`)
+      continue
+    }
     if (key === "mode") {
       const mode = value.toLowerCase() as Mode
       if (!MODES.includes(mode)) return { ok: false, reason: `mode must be one of ${MODES.join(", ")}` }
@@ -59,8 +70,15 @@ export function applySettingsArgs(args: string[], current: Settings): SettingsCh
   return { ok: true, settings: next, changed }
 }
 
+export function conclusionText(settings: Settings): string {
+  return settings.conclusion === "a" || settings.conclusion === "b"
+    ? `conclusion by ${settings.conclusion.toUpperCase()}`
+    : "no conclusion"
+}
+
 export function describeSettings(settings: Settings): string {
-  return `Mode: ${settings.mode} · rounds: ${settings.rounds} · max output: ${settings.maxOutputTokens} · ceiling: ${settings.rounds * 2} calls, ${settings.rounds * 2 * settings.maxOutputTokens} output tokens`
+  const bound = callBound(settings)
+  return `Mode: ${settings.mode} · rounds: ${settings.rounds} · max output: ${settings.maxOutputTokens} · ${conclusionText(settings)} · ceiling: ${bound.participantCalls} calls, ${bound.worstCaseOutputTokens} output tokens`
 }
 
 const PROBE: Settings = {

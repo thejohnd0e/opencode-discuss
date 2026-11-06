@@ -19,6 +19,10 @@ then hand the result to the **Plan** or **Build** agent.
 - **Two voices, one panel.** Model A and model B take turns; every reply is
   labelled and coloured by side, and streams in word by word.
 - **Three modes.** Cooperative, critical and debate.
+- **Joint conclusion.** Optionally, one participant sums the discussion up at the
+  end: what both agree on, where they still disagree, recommended next steps.
+  The handoff puts it first.
+- **Replies in your language.** The models answer in the language of the topic.
 - **You stay in control.** Starting always asks for your confirmation, the output
   cap and round count are explicit, and `/discuss-stop` ends the run at once.
 - **Honest accounting.** The panel shows the requests made against the plan and the
@@ -124,6 +128,7 @@ Type `/discuss` in the prompt to list the commands:
 | Choose both by name | `/discuss-models <A> <B>` | — |
 | Change only A / only B | `/discuss-model-a <A>`, `/discuss-model-b <B>` | — |
 | Rounds, output limit, mode | `/discuss-settings rounds=1 tokens=300 mode=critical` | — |
+| Joint conclusion by A or B | `/discuss-settings conclusion=b` (`none` to turn off) | — |
 | Stop | `/discuss-stop` | `ctrl+shift+x`* |
 | Interject | `/discuss-interject <text>` | `ctrl+shift+i`* |
 | Change topic | `/discuss-topic <text>` | `ctrl+shift+t`* |
@@ -158,8 +163,8 @@ Selecting models never starts generation; starting a discussion still shows its
 own confirmation.
 
 `/discuss-settings` without arguments shows the current pair and limits. With
-`rounds=1..12`, `tokens=16..32000` or `mode=cooperative|critical|debate` it
-changes them and keeps the models. Any invalid key refuses the whole change. In
+`rounds=1..12`, `tokens=16..32000`, `mode=cooperative|critical|debate` or
+`conclusion=none|a|b` it changes them and keeps the models. Any invalid key refuses the whole change. In
 a session without a pair it first offers the previous pair (or the model
 picker) and then applies the typed values on top.
 
@@ -179,7 +184,8 @@ enter the topic in the dialog.
 
 - Rounds must be between 1 and 12; the output limit must be between 16 and
   32000 tokens.
-- A run makes `rounds × 2` participant calls. OpenCode's automatic
+- A run makes `rounds × 2` participant calls, plus one when a conclusion is
+  set. OpenCode's automatic
   continuation after the output limit is cut off, so each call is one model
   request; the panel shows the actual count. The worst-case participant
   output is `rounds × 2 × maxOutputTokens`.
@@ -206,9 +212,19 @@ enter the topic in the dialog.
 - A result is handed off at most once, even after a restart; start a new
   discussion to hand off again.
 
+## Joint conclusion
+
+With `conclusion=a` or `conclusion=b`, after the last round that participant
+gets one more request: the whole dialogue (your remarks included) and a fixed
+shape with three sections, *agreed*, *disagreed* and *recommended next steps*.
+It is told to name every remaining disagreement and not to invent consensus.
+The panel shows it as a separate green block, "Conclusion · written by B", and
+the handoff puts it before the participants' latest positions, marked as
+written by one side. A stopped run gets no conclusion.
+
 ## Statuses
 
-`completed` requires every expected reply. A run with a missing or empty reply is
+`completed` requires every expected reply, and the conclusion when one is set. A run with a missing or empty reply is
 `failed`, even when earlier replies succeeded. `cancelled` means the user
 stopped it or the server restarted mid-run. Partial text and the transcript are
 kept in every case.

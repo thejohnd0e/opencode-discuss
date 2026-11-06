@@ -90,8 +90,8 @@ class Host:
 
 
 class BridgeProtocolTest(unittest.TestCase):
-    def host(self, **kwargs):
-        host = Host(**kwargs)
+    def host(self, *extra, **kwargs):
+        host = Host(*extra, **kwargs)
         self.addCleanup(host.close)
         return host
 
@@ -193,6 +193,87 @@ class BridgeProtocolTest(unittest.TestCase):
         self.assertEqual(host.wait_for("message")["text"], text)
         second = host.wait_for("generate")
         host.reply(second, "ok")
+        host.wait_for("done")
+        host.finish()
+
+    def test_every_turn_is_told_to_answer_in_the_language_of_the_topic(self):
+        host = self.host(rounds=1)
+        host.wait_for("started")
+        first = host.wait_for("generate")
+        self.assertIn("языке, на котором сформулирована тема", first["messages"][0]["content"])
+        host.reply(first, "a")
+        second = host.wait_for("generate")
+        self.assertIn("языке, на котором сформулирована тема", second["messages"][0]["content"])
+        host.reply(second, "b")
+        host.wait_for("done")
+        host.finish()
+
+    def test_without_a_conclusion_setting_no_extra_request_is_made(self):
+        host = self.host(rounds=1)
+        host.wait_for("started")
+        host.reply(host.wait_for("generate"), "a")
+        host.reply(host.wait_for("generate"), "b")
+        events = []
+        while True:
+            event = host.next()
+            events.append(event)
+            if event["type"] == "done":
+                break
+        self.assertFalse([event for event in events if event["type"] == "generate"])
+        host.finish()
+
+    def test_the_chosen_side_writes_a_conclusion_after_the_rounds(self):
+        host = self.host("--conclusion", "b", rounds=1)
+        started = host.wait_for("started")
+        host.reply(host.wait_for("generate"), "left position")
+        host.wait_for("message")
+        host.reply(host.wait_for("generate"), "right position")
+        host.wait_for("message")
+
+        request = host.wait_for("generate")
+        self.assertEqual(request["side"], "b")
+        prompt = json.dumps(request["messages"], ensure_ascii=False)
+        self.assertIn("left position", prompt)
+        self.assertIn("right position", prompt)
+        self.assertIn("Разногласия", request["messages"][0]["content"])
+        self.assertIn("языке, на котором сформулирована тема", request["messages"][0]["content"])
+        host.reply(request, "Agreed: x. Disagreed: y. Next steps: 1. z", usage={"output": 9})
+
+        host.wait_for("usage")
+        conclusion = host.wait_for("message")
+        self.assertTrue(conclusion["conclusion"])
+        self.assertEqual(conclusion["speaker"], started["b"])
+        self.assertEqual(conclusion["round"], 1)
+        transcript = host.wait_for("transcript")
+        self.assertIn("Next steps", Path(transcript["path"]).read_text(encoding="utf-8"))
+        done = host.wait_for("done")
+        self.assertEqual(done["messages"], 3)
+        self.assertEqual(host.finish(), 0)
+
+    def test_a_stopped_run_gets_no_conclusion(self):
+        host = self.host("--conclusion", "a", rounds=1)
+        host.wait_for("started")
+        host.wait_for("generate")
+        host.send(type="command", command="stop")
+        events = []
+        while True:
+            event = host.next()
+            events.append(event)
+            if event["type"] == "done":
+                break
+        self.assertFalse([event for event in events if event["type"] == "generate"])
+        self.assertTrue(events[-1]["stopped"])
+        host.finish()
+
+    def test_a_failed_conclusion_is_reported_as_an_error(self):
+        host = self.host("--conclusion", "a", rounds=1)
+        host.wait_for("started")
+        host.reply(host.wait_for("generate"), "a")
+        host.reply(host.wait_for("generate"), "b")
+        request = host.wait_for("generate")
+        host.send(type="generation_error", requestID=request["requestID"], message="boom")
+        error = host.wait_for("error")
+        self.assertIn("conclusion", error["message"])
         host.wait_for("done")
         host.finish()
 

@@ -32,6 +32,9 @@ The dialogue itself is driven by a small Python engine. Nothing patches OpenCode
 5. The turn ends on success, failure, timeout, stop, or when OpenCode starts an
    automatic continuation after `finish=length` (the plugin cuts that, so one
    turn is one request). The hidden session is removed.
+6. With `conclusion=a|b`, after the rounds the chosen side gets one more
+   request built from the whole dialogue, and its reply is stored as a message
+   with `kind: "conclusion"`. Every prompt asks for the language of the topic.
 
 ## Modules
 

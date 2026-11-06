@@ -4,10 +4,10 @@ import { createElement, insert, setProp } from "@opentui/solid"
 import { createEffect, createRoot, createSignal, getOwner, on, runWithOwner, type Owner } from "solid-js"
 import { DiscussRpc } from "./rpc"
 import { sessionDirectory } from "./discussion/location"
-import { applySettingsArgs, checkSettingsArgs, describeSettings, SETTINGS_USAGE } from "./ui/settings"
+import { applySettingsArgs, checkSettingsArgs, conclusionText, describeSettings, SETTINGS_USAGE } from "./ui/settings"
 import { createLog, logPath, shape } from "./ui/log"
 import { panelStyle, speakerRole, statusRole, type PanelStyle } from "./ui/panel-style"
-import type { Run, Settings } from "./discussion/types"
+import { callBound, dialogueReplies, isDialogueReply, type Run, type Settings } from "./discussion/types"
 import { describeUsage, ORCHESTRATOR_NOTE } from "./discussion/usage"
 import { createRefresher, viewOf, type Snapshot, type View, type Views } from "./ui/view-state"
 import { choiceOf, mergeSettings, parseChoice, resolveChoice, splitArgs, toOptions, type CatalogModel, type ModelOption } from "./ui/models"
@@ -66,7 +66,11 @@ function bubble(id: string, header: string, body: string, color: unknown, style:
   return box
 }
 
-function sideHeader(speaker: string, label: string, round: number, seconds?: number, live = false): string {
+function sideHeader(speaker: string, label: string, round: number, seconds?: number, live = false, conclusion = false): string {
+  if (conclusion) {
+    const side = speaker === "a" ? "A" : "B"
+    return `Conclusion · written by ${side} · ${label}${seconds ? ` · ${seconds}s` : ""}${live ? " · writing…" : ""}`
+  }
   const who =
     speaker === "a" ? `A · ${label}` : speaker === "b" ? `B · ${label}` : speaker === "topic" ? "Topic change" : `You · ${label}`
   return `${who} · round ${round}${seconds ? ` · ${seconds}s` : ""}${live ? " · writing…" : ""}`
@@ -339,8 +343,8 @@ export default Plugin.define({
         setProp(box, "flexGrow", 1)
 
         const settings = run?.settings ?? value.settings
-        const expected = settings ? settings.rounds * 2 : 0
-        const replies = run ? run.messages.filter((message) => message.speaker === "a" || message.speaker === "b").length : 0
+        const expected = settings ? dialogueReplies(settings) : 0
+        const replies = run ? run.messages.filter(isDialogueReply).length : 0
         insert(
           box,
           row("discuss.header", [
@@ -366,17 +370,19 @@ export default Plugin.define({
           insert(box, line("discuss.empty", "No replies yet. Start with /discuss-start <topic>.", style.faint))
         }
         run?.messages.forEach((message, index) => {
-          const role = speakerRole(message.speaker)
-          insert(box, bubble(`discuss.msg.${index}`, sideHeader(message.speaker, message.label, message.round, message.seconds), message.text, style[role], style))
+          const conclusion = message.kind === "conclusion"
+          const color = conclusion ? style.success : style[speakerRole(message.speaker)]
+          insert(box, bubble(`discuss.msg.${index}`, sideHeader(message.speaker, message.label, message.round, message.seconds, false, conclusion), message.text, color, style))
         })
         if (run?.partial) {
-          const role = speakerRole(run.partial.speaker)
-          insert(box, bubble("discuss.msg.live", sideHeader(run.partial.speaker, run.partial.label, run.partial.round, undefined, true), run.partial.text, style[role], style, true))
+          const conclusion = run.partial.kind === "conclusion"
+          const color = conclusion ? style.success : style[speakerRole(run.partial.speaker)]
+          insert(box, bubble("discuss.msg.live", sideHeader(run.partial.speaker, run.partial.label, run.partial.round, undefined, true, conclusion), run.partial.text, color, style, true))
         }
 
         const footer: Array<unknown> = []
         if (run?.usage?.requests) {
-          const planned = run.settings.rounds * 2
+          const planned = callBound(run.settings).participantCalls
           const over = run.usage.requests > planned
           footer.push(line("discuss.requests", `Model requests: ${run.usage.requests} of ${planned} planned${over ? " — more than planned" : ""}`, over ? style.warning : style.muted))
         }
@@ -511,7 +517,7 @@ export default Plugin.define({
         `B: ${choiceOf(merged.b)}`,
         `Mode: ${merged.mode} · rounds: ${merged.rounds} · max output: ${merged.maxOutputTokens}`,
         "Both participants see the topic and each other's replies.",
-        `Hard ceiling: ${merged.rounds * 2} participant calls, ${merged.rounds * 2 * merged.maxOutputTokens} output tokens. Input, reasoning and this conversation cost extra.`,
+        `Hard ceiling: ${callBound(merged).participantCalls} participant calls, ${callBound(merged).worstCaseOutputTokens} output tokens. Input, reasoning and this conversation cost extra.`,
       ].join("\n")
       if (!typed) {
         const confirmed = await dialog.confirm({
@@ -746,8 +752,8 @@ export default Plugin.define({
                 `Topic: ${topic}`,
                 `A: ${choiceOf(settings.a)}`,
                 `B: ${choiceOf(settings.b)}`,
-                `Mode: ${settings.mode} · rounds: ${settings.rounds} · max output: ${settings.maxOutputTokens}`,
-                `Ceiling: ${settings.rounds * 2} participant calls, ${settings.rounds * 2 * settings.maxOutputTokens} output tokens.`,
+                `Mode: ${settings.mode} · rounds: ${settings.rounds} · max output: ${settings.maxOutputTokens} · ${conclusionText(settings)}`,
+                `Ceiling: ${callBound(settings).participantCalls} participant calls, ${callBound(settings).worstCaseOutputTokens} output tokens.`,
                 "Both participants see the topic and each other's replies.",
               ].join("\n"),
               label: { confirm: "Start", cancel: "Cancel" },

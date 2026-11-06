@@ -1,5 +1,8 @@
 export type Status = "idle" | "running" | "completed" | "cancelled" | "failed"
 export type Mode = "cooperative" | "critical" | "debate"
+/** Who writes the joint conclusion after the rounds; `none` (or absent) means no conclusion. */
+export type Conclusion = "none" | "a" | "b"
+export const CONCLUSIONS: readonly Conclusion[] = ["none", "a", "b"]
 
 export type ModelRef = {
   providerID: string
@@ -13,6 +16,8 @@ export type Settings = {
   mode: Mode
   rounds: number
   maxOutputTokens: number
+  /** Optional so earlier stored settings stay valid. */
+  conclusion?: Conclusion
 }
 
 export type Speaker = "a" | "b" | "human" | "topic"
@@ -24,6 +29,8 @@ export type Message = {
   round: number
   text: string
   seconds?: number
+  /** Set on the joint conclusion written after the rounds. */
+  kind?: "conclusion"
 }
 
 export type PartialMessage = {
@@ -31,6 +38,7 @@ export type PartialMessage = {
   label: string
   round: number
   text: string
+  kind?: "conclusion"
 }
 
 export type Usage = {
@@ -102,8 +110,22 @@ export function speakerLabel(speaker: Speaker, settings: Settings): string {
   return "topic"
 }
 
+export function hasConclusion(settings: Settings): boolean {
+  return settings.conclusion === "a" || settings.conclusion === "b"
+}
+
+/** Dialogue replies a complete run has: two per round. The conclusion is not one of them. */
+export function dialogueReplies(settings: Settings): number {
+  return settings.rounds * 2
+}
+
+/** A participant's reply in the dialogue (not the conclusion, not a human remark). */
+export function isDialogueReply(message: Message): boolean {
+  return (message.speaker === "a" || message.speaker === "b") && message.kind !== "conclusion"
+}
+
 /** Worst-case participant calls and output tokens; input and orchestrator calls are extra. */
 export function callBound(settings: Settings): { participantCalls: number; worstCaseOutputTokens: number } {
-  const participantCalls = settings.rounds * 2
+  const participantCalls = dialogueReplies(settings) + (hasConclusion(settings) ? 1 : 0)
   return { participantCalls, worstCaseOutputTokens: participantCalls * settings.maxOutputTokens }
 }

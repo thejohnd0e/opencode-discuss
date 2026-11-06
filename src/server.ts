@@ -16,7 +16,7 @@ import { createLog, logPath } from "./ui/log"
 import { sameLocation, sessionDirectory } from "./discussion/location"
 import { DiscussionService, type ServiceEvent } from "./discussion/service"
 import { DiscussionStore } from "./discussion/store"
-import { MIN_OUTPUT_TOKENS, type ModelRef, type Run, type Settings, type Storage } from "./discussion/types"
+import { dialogueReplies, isDialogueReply, MIN_OUTPUT_TOKENS, type ModelRef, type Run, type Settings, type Storage } from "./discussion/types"
 
 const PARTICIPANT_AGENT = "discuss-participant"
 const TURN_TIMEOUT_MS = 120_000
@@ -294,7 +294,8 @@ export default Plugin.define({
             content: [
               `Status: ${run.status}`,
               `Topic: ${run.topic}`,
-              `Replies: ${run.messages.length} of ${run.settings.rounds * 2}`,
+              `Replies: ${run.messages.filter(isDialogueReply).length} of ${dialogueReplies(run.settings)}`,
+              run.messages.some((message) => message.kind === "conclusion") ? "Conclusion: written" : "",
               run.error ? `Error: ${run.error}` : "",
             ]
               .filter(Boolean)

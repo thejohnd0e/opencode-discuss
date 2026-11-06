@@ -19,6 +19,7 @@ const settings = {
     mode: { type: "string", enum: ["cooperative", "critical", "debate"] },
     rounds: { type: "number" },
     maxOutputTokens: { type: "number" },
+    conclusion: { type: "string", enum: ["none", "a", "b"] },
   },
   required: ["a", "b", "mode", "rounds", "maxOutputTokens"],
   additionalProperties: false,
@@ -38,6 +39,7 @@ const message = object(
     round: { type: "number" },
     text: { type: "string" },
     seconds: { type: "number" },
+    kind: { type: "string", enum: ["conclusion"] },
   },
   ["speaker", "label", "round", "text"],
 )
@@ -58,6 +60,7 @@ const run = object(
         label: { type: "string" },
         round: { type: "number" },
         text: { type: "string" },
+        kind: { type: "string", enum: ["conclusion"] },
       },
       required: ["speaker", "label", "round", "text"],
       additionalProperties: false,

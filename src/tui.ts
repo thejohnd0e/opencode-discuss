@@ -53,7 +53,7 @@ function row(id: string, pieces: Array<[string, unknown?, boolean?]>) {
  * One reply: a coloured bar on the left and a header naming the side, the
  * model and the round, so it is always clear who says what.
  */
-function bubble(id: string, header: string, body: string, color: unknown, style: PanelStyle, live = false) {
+function bubble(id: string, header: Header, body: string, color: unknown, style: PanelStyle, live = false) {
   const box = createElement("box")
   setProp(box, "id", id)
   setProp(box, "flexDirection", "column")
@@ -62,7 +62,8 @@ function bubble(id: string, header: string, body: string, color: unknown, style:
   setProp(box, "border", ["left"])
   setProp(box, "borderStyle", live ? "single" : "heavy")
   if (color !== undefined) setProp(box, "borderColor", color)
-  insert(box, line(`${id}.head`, header, color, true))
+  // Who speaks in the side colour and bold; time and "writing…" in plain grey.
+  insert(box, header.meta ? row(`${id}.head`, [[header.who, color, true], [header.meta, style.muted]]) : line(`${id}.head`, header.who, color, true))
   const textColor = live ? style.muted : style.body
   // Markdown headings (the conclusion's sections) show as bold lines, not "## …".
   const blocks = textBlocks(body)
@@ -81,14 +82,14 @@ function bubble(id: string, header: string, body: string, color: unknown, style:
   return box
 }
 
-function sideHeader(speaker: string, label: string, round: number, seconds?: number, live = false, conclusion = false): string {
-  if (conclusion) {
-    const side = speaker === "a" ? "A" : "B"
-    return `Conclusion · written by ${side} · ${label}${seconds ? ` · ${seconds}s` : ""}${live ? " · writing…" : ""}`
-  }
+type Header = { who: string; meta: string }
+
+function sideHeader(speaker: string, label: string, round: number, seconds?: number, live = false, conclusion = false): Header {
+  const meta = `${seconds ? ` · ${seconds}s` : ""}${live ? " · writing…" : ""}`
+  if (conclusion) return { who: `Conclusion · written by ${speaker === "a" ? "A" : "B"} · ${label}`, meta }
   const who =
     speaker === "a" ? `A · ${label}` : speaker === "b" ? `B · ${label}` : speaker === "topic" ? "Topic change" : `You · ${label}`
-  return `${who} · round ${round}${seconds ? ` · ${seconds}s` : ""}${live ? " · writing…" : ""}`
+  return { who: `${who} · round ${round}`, meta }
 }
 
 function modelText(settings: Settings | null): string {

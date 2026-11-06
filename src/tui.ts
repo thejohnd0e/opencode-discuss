@@ -6,6 +6,7 @@ import { DiscussRpc } from "./rpc"
 import { sessionDirectory } from "./discussion/location"
 import { applySettingsArgs, checkSettingsArgs, conclusionText, describeSettings, SETTINGS_USAGE } from "./ui/settings"
 import { createLog, logPath, shape } from "./ui/log"
+import { textBlocks } from "./ui/markdown"
 import { panelStyle, speakerRole, statusRole, type PanelStyle } from "./ui/panel-style"
 import { callBound, dialogueReplies, isDialogueReply, type Run, type Settings } from "./discussion/types"
 import { describeUsage, ORCHESTRATOR_NOTE } from "./discussion/usage"
@@ -62,7 +63,21 @@ function bubble(id: string, header: string, body: string, color: unknown, style:
   setProp(box, "borderStyle", live ? "single" : "heavy")
   if (color !== undefined) setProp(box, "borderColor", color)
   insert(box, line(`${id}.head`, header, color, true))
-  insert(box, line(`${id}.body`, body, live ? style.muted : style.body))
+  const textColor = live ? style.muted : style.body
+  // Markdown headings (the conclusion's sections) show as bold lines, not "## …".
+  const blocks = textBlocks(body)
+  if (blocks.length <= 1 && !blocks.some((block) => block.heading)) {
+    insert(box, line(`${id}.body`, body, textColor))
+    return box
+  }
+  blocks.forEach((block, index) => {
+    if (block.heading) {
+      if (index > 0) insert(box, line(`${id}.gap.${index}`, " "))
+      insert(box, line(`${id}.h.${index}`, block.text, color, true))
+    } else {
+      insert(box, line(`${id}.t.${index}`, block.text, textColor))
+    }
+  })
   return box
 }
 
@@ -360,7 +375,11 @@ export default Plugin.define({
           insert(box, row("discuss.model-b", [["B  ", style.b, true], [choiceOf(settings.b), style.b]]))
           insert(
             box,
-            line("discuss.settings", `${settings.mode} · ${settings.rounds} round${settings.rounds === 1 ? "" : "s"} · max ${settings.maxOutputTokens} tokens per reply`, style.muted),
+            line(
+              "discuss.settings",
+              `${settings.mode} · ${settings.rounds} round${settings.rounds === 1 ? "" : "s"} · max ${settings.maxOutputTokens} tokens per reply${settings.conclusion === "a" || settings.conclusion === "b" ? ` · ${conclusionText(settings)}` : ""}`,
+              style.muted,
+            ),
           )
         } else {
           insert(box, line("discuss.settings", "Choose a pair: /discuss-models", style.warning))

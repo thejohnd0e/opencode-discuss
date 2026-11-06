@@ -1,5 +1,6 @@
 import type { Runner, RunnerEvent, RunnerFinished, RunnerStart } from "./runner"
 import { DiscussionStore } from "./store"
+import type { PreflightFailure } from "./preflight"
 import { modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
 
 export type ServiceEvent = {
@@ -12,13 +13,15 @@ export type ServiceEvent = {
 
 export type StartResult =
   | { ok: true; runID: string; revision: number }
-  | { ok: false; error: "busy" | "invalid_settings" | "not_found" | "model_unavailable"; reason?: string; runID?: string }
+  | { ok: false; error: "busy" | "invalid_settings" | "not_found" | "model_unavailable"; reason?: string; runID?: string; side?: "a" | "b"; modelID?: string }
 
 export type ServiceDeps = {
   store: DiscussionStore
   location: string
   emit: (event: ServiceEvent) => void
   verifySession: (sessionID: string) => Promise<boolean>
+  /** Optional check of the saved pair before a start; a failure aborts it. */
+  preflight?: (settings: Settings) => Promise<PreflightFailure | null>
   createRunner: (onEvent: (event: RunnerEvent) => void) => Runner
 }
 
@@ -72,6 +75,8 @@ export class DiscussionService {
       if (!(await this.#deps.verifySession(sessionID))) {
         return { ok: false, error: "not_found", reason: "session does not belong to this location" }
       }
+      const problem = await this.#deps.preflight?.(settings)
+      if (problem) return { ok: false, error: problem.error, reason: problem.reason, ...(problem.side ? { side: problem.side } : {}), ...(problem.modelID ? { modelID: problem.modelID } : {}) }
       const current = this.#deps.store.session(this.#deps.location, sessionID).settings
       if (!current || JSON.stringify(current) !== JSON.stringify(settings)) {
         return { ok: false, error: "invalid_settings", reason: "settings changed while the launch was being confirmed" }

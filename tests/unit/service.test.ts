@@ -287,3 +287,33 @@ describe("discussion service lifecycle", () => {
 function runnerStart(service: DiscussionService) {
   return service.active("location-1")
 }
+
+describe("preflight in start", () => {
+  test("a failing preflight stops the start before a run is created", async () => {
+    const store = await DiscussionStore.open(memory())
+    store.setSettings("location-1", "session-a", settings)
+    let created = 0
+    const service = new DiscussionService({
+      store,
+      location: "location-1",
+      verifySession: async () => true,
+      preflight: async () => ({ error: "model_unavailable", reason: "gone", side: "b", modelID: "right" }),
+      emit: () => {},
+      createRunner: () => {
+        created++
+        return new FakeRunner()
+      },
+      python: "python",
+      script: "runner.py",
+      cwd: "C:/work",
+    })
+    const result = await service.start("session-a", "Topic", "req-pre")
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe("model_unavailable")
+      expect(result.side).toBe("b")
+    }
+    expect(created).toBe(0)
+    expect(service.active("location-1")).toBeNull()
+  })
+})

@@ -10,6 +10,7 @@ import { createTurnRunner, TurnRegistry, type HostEvent, type SessionHost, type 
 import { createRunner } from "./discussion/runner"
 import { DEFAULT_RUNNER } from "./paths"
 import { errorShape, explainRefusal, requireConsent, START_ACTION } from "./discussion/consent"
+import { preflight, type CatalogModel } from "./discussion/preflight"
 import { createLog, logPath } from "./ui/log"
 import { sameLocation, sessionDirectory } from "./discussion/location"
 import { DiscussionService, type ServiceEvent } from "./discussion/service"
@@ -172,11 +173,26 @@ export default Plugin.define({
       })
     }
 
+    const runPreflight = async (settings: Settings) => {
+      let catalog: CatalogModel[]
+      try {
+        catalog = ((await ctx.model.list()) as unknown as { data: CatalogModel[] }).data
+      } catch (error) {
+        // A failed lookup must not block a start; the turn itself will still report a bad model.
+        log("preflight-skipped", { error: String((error as Error)?.message ?? error) })
+        return null
+      }
+      const failure = preflight(catalog, settings)
+      if (failure) log("preflight-failed", { error: failure.error, side: failure.side })
+      return failure
+    }
+
     service = new DiscussionService({
       store,
       location: ctx.location.directory,
       emit,
       verifySession: belongs,
+      preflight: runPreflight,
       createRunner: (onEvent) =>
         createRunner({
           python: String(ctx.options.python ?? "python"),
@@ -224,6 +240,9 @@ export default Plugin.define({
           if (!settings) return { content: "No models selected. Ask the user to run /discuss-models first." }
           if (!topic) return { content: "A topic is required." }
 
+          // Fail before asking the user to approve something that cannot start.
+          const problem = await runPreflight(settings)
+          if (problem) return { content: `Could not start: ${problem.reason}` }
           log("consent-requested", { sessionID, agent: context.agent ?? null, rounds: settings.rounds, maxOutputTokens: settings.maxOutputTokens })
           try {
             await ctx.permission.assert({
@@ -322,7 +341,7 @@ export default Plugin.define({
         if (result.error === "busy") return call.error("busy", "a discussion is already running", { runID: result.runID ?? "" })
         if (result.error === "not_found") return call.error("not_found", "session not found", { sessionID })
         if (result.error === "model_unavailable") {
-          return call.error("model_unavailable", result.reason ?? "model unavailable", { side: "a", modelID: "" })
+          return call.error("model_unavailable", result.reason ?? "model unavailable", { side: result.side ?? "a", modelID: result.modelID ?? "" })
         }
         return call.error("invalid_settings", result.reason ?? "invalid settings", { reason: result.reason ?? "invalid settings" })
       },

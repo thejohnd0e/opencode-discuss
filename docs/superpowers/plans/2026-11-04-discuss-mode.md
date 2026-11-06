@@ -572,7 +572,8 @@ went unanswered.
 - [x] Panel: "answers A2, A3; leaves A1 open". Conclusion built from the ledger:
   claims that stood, were rebutted, or were never answered.
 - [x] Details: the runner numbers claims itself and lists the opponent's open claims in the prompt; the block is `[ledger] … [/ledger]` with `+ A2: …` and `B1: rebutted|accepted` (tolerant to Markdown emphasis, bullets, dashes, a code fence, a missing close tag); only open claims of the opponent can be closed; the block is cut from the stored and streamed text; `Message.ledger` in store and RPC; state derived in TS from the messages (`ledgerOf`); handoff "Claims ledger" section. 204 unit, 27 Python, smoke ready.
-- [ ] Live: a debate of 3 rounds.
+- [x] Live 2026-11-07, run `dd6c56a7` (debate, 3 rounds, 1500 tokens, conclusion=b, Russian topic): completed, 7 of 7 requests, $0.0028. Two parser faults found and fixed: (1) GPT wrote the ledger lines and `[/ledger]` but never `[ledger]`, so all its claims and verdicts were lost and its replies were marked "could not be read" (now a block is also found by its close tag or as a trailing run of claim/verdict lines); (2) two quotes on adjacent `>` lines were joined into one passage and reported as not found (now every `>` line is its own quote). Replaying GPT's real replies after the fix: all three blocks read, quotes 2 of 2. 30 Python tests.
+- [ ] Live re-run of a 3-round debate after the fix.
 
 ## Phase 2 delivery checkpoints
 

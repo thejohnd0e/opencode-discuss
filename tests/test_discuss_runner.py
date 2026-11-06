@@ -316,8 +316,13 @@ class AnswerCheckTest(unittest.TestCase):
     def test_quote_with_an_ellipsis_and_over_two_lines(self):
         self.assertEqual(self.check("> он сохраняет работающие функции … снижает риск\nОтвет"),
                          {"quoted": 1, "matched": 1})
-        self.assertEqual(self.check("> позволяет проверять\n> каждое изменение и снижает риск\nОтвет"),
-                         {"quoted": 1, "matched": 1})
+        self.assertEqual(self.check("> позволяет проверять каждое\n> изменение и снижает риск\nОтвет"),
+                         {"quoted": 2, "matched": 2})
+
+    def test_two_quotes_on_adjacent_lines_are_two_quotes(self):
+        self.assertEqual(self.check("> «Поэтапный рефакторинг обычно безопаснее»\n"
+                                    "> «снижает риск сорвать сроки»\nОтвет"),
+                         {"quoted": 2, "matched": 2})
 
     def test_a_one_word_slip_is_tolerated(self):
         self.assertEqual(self.check("> он сохраняет рабочие функции, позволяет проверять каждое изменение\nОтвет"),
@@ -364,6 +369,22 @@ class LedgerTest(unittest.TestCase):
         # a closed claim cannot be closed again
         _shown, again = ledger.apply("B", "y\n[ledger]\nA1: accepted\n[/ledger]", 2)
         self.assertEqual(again["answers"], [])
+
+    def test_a_block_without_the_opening_tag_is_still_read(self):
+        ledger = self.runner.Ledger()
+        ledger.apply("A", "x\n[ledger]\n+ A1: one\n+ A2: two\n[/ledger]", 1)
+        shown, record = ledger.apply("B", "My reply ends here.\n\n+ B1: tests first\nA1: rebutted\n[/ledger]", 1)
+        self.assertEqual(shown, "My reply ends here.")
+        self.assertTrue(record["parsed"])
+        self.assertEqual(record["claims"], [{"id": "B1", "text": "tests first"}])
+        self.assertEqual(record["answers"], [{"id": "A1", "verdict": "rebutted"}])
+
+    def test_trailing_service_lines_without_any_tag_are_read(self):
+        ledger = self.runner.Ledger()
+        ledger.apply("A", "x\n[ledger]\n+ A1: one\n[/ledger]", 1)
+        shown, record = ledger.apply("B", "Text.\n\n+ B1: tests first\nA1: accepted", 1)
+        self.assertEqual(shown, "Text.")
+        self.assertEqual(record["answers"], [{"id": "A1", "verdict": "accepted"}])
 
     def test_a_reply_without_a_block_is_kept_and_marked(self):
         ledger = self.runner.Ledger()

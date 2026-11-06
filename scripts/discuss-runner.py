@@ -105,17 +105,18 @@ def normalize(text):
 
 
 def extract_quotes(text):
-    """Quoted passages: runs of lines that start with `>`."""
-    quotes, current = [], []
+    """Quoted lines: every line that starts with `>` is its own quote.
+
+    Two quotes on adjacent lines are two different passages of the opponent
+    (live 2026-11-07: joining them made a real pair of quotes look invented).
+    A sentence a model wraps over two lines then counts as two quotes, each
+    still found in the opponent's reply.
+    """
+    quotes = []
     for line in text.splitlines():
         match = QUOTE_LINE.match(line)
         if match:
-            current.append(match.group(1))
-        elif current:
-            quotes.append(" ".join(current))
-            current = []
-    if current:
-        quotes.append(" ".join(current))
+            quotes.append(match.group(1))
     return [quote for quote in quotes if len(normalize(quote).split()) >= MIN_QUOTE_WORDS]
 
 
@@ -199,14 +200,43 @@ class Ledger:
         )
         return LEDGER_RULE.format(next=f"{me}{number}", after=f"{me}{number + 1}", open=listing)
 
+    @staticmethod
+    def _service_line(line):
+        clean = re.sub(r"[*_`]", "", line)
+        return bool(CLAIM_LINE.match(clean) or VERDICT_LINE.match(clean))
+
+    def _locate(self, reply):
+        """(start, end, block) of the service block, or None.
+
+        Models do not always write both tags (live 2026-11-07: one wrote the
+        lines and `[/ledger]` but no `[ledger]`), so a trailing run of claim
+        and verdict lines counts as the block too.
+        """
+        start = reply.rfind(LEDGER_OPEN)
+        if start >= 0:
+            end = reply.find(LEDGER_CLOSE, start)
+            stop = end + len(LEDGER_CLOSE) if end >= 0 else len(reply)
+            return start, stop, reply[start + len(LEDGER_OPEN):end if end >= 0 else len(reply)]
+        close = reply.rfind(LEDGER_CLOSE)
+        body = (reply[:close] if close >= 0 else reply).rstrip()
+        stop = close + len(LEDGER_CLOSE) if close >= 0 else len(reply)
+        lines = body.split("\n")
+        first = len(lines)
+        while first > 0 and (self._service_line(lines[first - 1]) or (not lines[first - 1].strip() and first < len(lines))
+                             or lines[first - 1].strip().startswith("```")):
+            first -= 1
+        if not any(self._service_line(line) for line in lines[first:]):
+            return None
+        start = len("\n".join(lines[:first])) + (1 if first else 0)
+        return start, stop, body[start:]
+
     def apply(self, me, reply, round_no):
         """Cuts the block out of the reply and applies it. Returns (shown text, ledger record)."""
-        start = reply.rfind(LEDGER_OPEN)
-        if start < 0:
+        found = self._locate(reply)
+        if found is None:
             return reply.strip(), {"claims": [], "answers": [], "parsed": False}
-        end = reply.find(LEDGER_CLOSE, start)
-        block = reply[start + len(LEDGER_OPEN):end if end >= 0 else len(reply)]
-        shown = (reply[:start] + (reply[end + len(LEDGER_CLOSE):] if end >= 0 else "")).strip()
+        start, stop, block = found
+        shown = (reply[:start] + reply[stop:]).strip()
         # A model may wrap the block in a code fence; drop the fence left behind.
         while True:
             trimmed = re.sub(r"(?:\n|^)\s*```[\w-]*\s*$", "", shown).strip()

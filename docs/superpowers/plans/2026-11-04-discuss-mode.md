@@ -467,7 +467,7 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
   - the installed agent copy was updated;
   - 4 new tests; 127 unit tests pass, build ok, both smoke tests ready.
 - [x] Live (13:15Z): rejected again. The tool result carried the declined text and the agent answered “Запуск отклонён… ничего не начато, ни один модельный вызов не потрачен”, without retrying. The error is `Permission.DeclinedError` with only `_tag`; no new run.
-- [ ] Not yet exercised live: the hook turning a configured `allow` into `ask` (unit-tested; live the agent rule already produced `ask`).
+- [x] Live 2026-11-06: a configured `discuss.start: allow` is turned into `ask` (`consent-evaluate before=allow after=ask`, prompt shown, rejected). The host offers no "always" option for this prompt, so a saved always-allow cannot arise from the UI. Original item: the hook turning a configured `allow` into `ask` (unit-tested; live the agent rule already produced `ask`).
 
 ## Task 12: Hardening, ordered by risk
 

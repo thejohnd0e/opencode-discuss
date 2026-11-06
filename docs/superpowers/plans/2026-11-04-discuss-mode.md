@@ -528,7 +528,7 @@ Replies follow the language of the topic, without a separate setting.
 - [x] **RPC schema:** `settings.conclusion` and `message.kind` listed (the host
   drops unlisted fields).
 - [x] Tests (offline: 181 unit, 12 Python, both smoke tests ready): settings arguments, store validation, schema, bound, handoff,
-  Python conclusion request and language line. Pending: one live run (about two
+  Python conclusion request and language line. Live 2026-11-07, two runs (deepseek-flash#low vs gpt-6-luna#medium, 1 round, 1200 tokens, conclusion=b): both `completed`, 3 of 3 requests, $0.0006 and $0.0005; the green block appeared with the three sections; one run honestly said there were no disagreements, the other listed both positions; Russian topics gave Russian replies. Seen: Markdown `##` headings show raw in the panel, and the panel's settings line does not mention the conclusion. Originally: one live run (about two
   replies plus one conclusion, budget stated before the run).
 - [ ] Later, not in this task: a second side reviewing the conclusion
   ("what is distorted?"), and a structured "project plan" mode.

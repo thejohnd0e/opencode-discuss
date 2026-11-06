@@ -8,16 +8,8 @@ import { applySettingsArgs, describeSettings, SETTINGS_USAGE } from "./ui/settin
 import { createLog, logPath, shape } from "./ui/log"
 import { panelStyle, speakerRole, statusRole, type PanelStyle } from "./ui/panel-style"
 import type { Run, Settings } from "./discussion/types"
+import { createRefresher, viewOf, type Snapshot, type View, type Views } from "./ui/view-state"
 import { choiceOf, mergeSettings, parseChoice, resolveChoice, splitArgs, toOptions, type CatalogModel, type ModelOption } from "./ui/models"
-
-type RunSummary = { runID: string; topic: string; status: string; createdAt: number }
-type View = {
-  sessionID: string
-  revision: number
-  settings: Settings | null
-  run?: Run
-  runs: RunSummary[]
-}
 
 /** Long enough to read a multi-line toast. */
 const TOAST_MS = 10_000
@@ -236,36 +228,18 @@ export default Plugin.define({
       context.ui.toast.show({ duration: TOAST_MS, ...options })
     }
 
-    const [views, setViews] = createSignal<Record<string, View>>({})
+    const [views, setViews] = createSignal<Views>({})
 
-    const view = (sessionID: string): View =>
-      views()[sessionID] ?? { sessionID, revision: -1, settings: null, runs: [] }
+    const view = (sessionID: string): View => viewOf(views(), sessionID)
 
-    const refresh = async (sessionID: string) => {
-      try {
-        const snapshot = (await discuss.snapshot({ sessionID })) as unknown as {
-          revision: number
-          settings: Settings | null
-          run?: Run
-          runs: RunSummary[]
-        }
-        if (disposed) return
-        const previous = view(sessionID)
-        if (snapshot.revision < previous.revision) return
-        setViews({
-          ...views(),
-          [sessionID]: {
-            sessionID,
-            revision: snapshot.revision,
-            settings: snapshot.settings,
-            run: snapshot.run,
-            runs: snapshot.runs,
-          },
-        })
-      } catch (error) {
-        log("refresh-failed", { sessionID, error: String((error as Error)?.message ?? error) })
-      }
-    }
+    const refresher = createRefresher({
+      fetch: async (sessionID) => (await discuss.snapshot({ sessionID })) as unknown as Snapshot,
+      get: views,
+      set: setViews,
+      isDisposed: () => disposed,
+      onError: (sessionID, error) => log("refresh-failed", { sessionID, error: String((error as Error)?.message ?? error) }),
+    })
+    const refresh = refresher.refresh
 
     const sessionOf = (): string | undefined => {
       const route = context.ui.router.current() as { sessionID?: string } | undefined
@@ -310,18 +284,6 @@ export default Plugin.define({
       toast("The Discuss panel could not be opened; run /discuss again", "warning")
     }
 
-    const pending = new Map<string, ReturnType<typeof setTimeout>>()
-    const schedule = (sessionID: string) => {
-      if (pending.has(sessionID)) return
-      pending.set(
-        sessionID,
-        setTimeout(() => {
-          pending.delete(sessionID)
-          void refresh(sessionID)
-        }, 200),
-      )
-    }
-
     owned(() => createEffect(
       on(
         () => (context.ui.router.current() as { sessionID?: string } | undefined)?.sessionID,
@@ -353,15 +315,11 @@ export default Plugin.define({
     ))
 
     cleanups.push(() => {
-      for (const timer of pending.values()) clearTimeout(timer)
-      pending.clear()
+      refresher.cancel()
     })
     const stopEvents = discuss.events.on("updated", (event) => {
       const data = event.data as { sessionID?: string; revision?: number }
-      if (disposed || !data?.sessionID) return
-      const current = view(data.sessionID)
-      if (typeof data.revision === "number" && data.revision < current.revision) return
-      schedule(data.sessionID)
+      refresher.onUpdated(data?.sessionID, data?.revision)
     })
 
     cleanups.push(() => stopEvents())

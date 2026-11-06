@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Canonical project: `D:\MyProjects\opencode-discuss`.
+- Canonical project: `\path\to\opencode-discuss`.
 - Target the user's installed OpenCode 2.2.5; current website documentation is not proof of availability in that release.
 - No OpenCode core modifications, full Python-to-TypeScript port, or unrelated plugin/agent/config changes.
 - Keep `scripts/model-duel.py` unchanged; extend `scripts/discuss-runner.py` around its existing functions.
@@ -268,13 +268,13 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
   - `opencode.json` → append to the existing `"plugins"` array (keep the `usage-monitor` entry and every other key):
     ```jsonc
     {
-      "package": "D:/MyProjects/opencode-discuss",
-      "options": { "python": "<path-to-python>" }
+      "package": "/path/to/opencode-discuss",
+      "options": { "python": "/path/to/python" }
     }
     ```
     `runner` is no longer needed after Task 9; the default resolves to the package's own script.
   - The old options `a`, `aUrl`, `b`, `rounds` and `maxTokens` are not carried over. There is no silent default pair, and models are chosen with `/discuss-models`.
-  - `cli.json` → remove only the `D:/MyProjects/opencode-discuss` object from `"plugins"`. Keep `recent-models` and `voice-alerts`.
+  - `cli.json` → remove only the `/path/to/opencode-discuss` object from `"plugins"`. Keep `recent-models` and `voice-alerts`.
 - [x] Back up both files with a dated suffix (`*.before-discuss-server-20261106.bak`), matching the existing backup convention in that directory.
 - [x] Copy `agents/discuss.md` and `agents/discuss-participant.md`. There is no collision: only `vk-cleaner.md` and `vk-online.md` exist there now.
 - [ ] Reload (`/reload`). Verify there is exactly one Discuss server registration, one panel and one `discuss` agent, and no duplicate TUI part.
@@ -293,7 +293,7 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
 
 ## Task 10b: One state per session location, settings command — done 2026-11-06
 
-**Found during the post-install check (OpenCode DB, read only):** the pair chosen from the TUI was stored under location `C:\Users\<user>`, but the session lives in `D:/MyProjects/opencode-discuss`. OpenCode runs one server plugin instance per location. A TUI RPC without a location lands in the default instance, while the `discuss_*` tools run in the session's own location, so a chat-started discussion would answer “No models selected”. All instances also rewrote the single key `discuss/state` as a whole, so they could erase each other's writes, and a newly started instance cancelled “running” runs of other live locations.
+**Found during the post-install check (OpenCode DB, read only):** the pair chosen from the TUI was stored under location `C:\Users\<user>`, but the session lives in `/path/to/opencode-discuss`. OpenCode runs one server plugin instance per location. A TUI RPC without a location lands in the default instance, while the `discuss_*` tools run in the session's own location, so a chat-started discussion would answer “No models selected”. All instances also rewrote the single key `discuss/state` as a whole, so they could erase each other's writes, and a newly started instance cancelled “running” runs of other live locations.
 
 - [x] **TUI routing:** every RPC carries `{ location: { directory } }` of its session (2.2.5 `RpcCallOptions.location`). The directory comes from `context.data.session.get`, then `client.session.get`, and is cached; a created session is cached from its `SessionInfo`. This is implemented as a proxy around the RPC client, so no call site can forget it.
 - [x] **Ownership check on the server:** `belongs(sessionID)` compares the session's reported directory with the instance location (normalized: slashes, trailing slash, drive-path case). It backs `verifySession` for start, and `settingsSet` now refuses another location's session with `not_found`.
@@ -357,7 +357,7 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
 - [x] `src/server.ts`: turn sessions are created in `ctx.location.directory`, the same instance whose hook knows the turn's messages. The hook clears `system` and `tools`, so project instructions and tools do not reach participants. Superpowers loads before Discuss, so our hook runs last.
 - [x] Guard: the hook calls `registry.markApplied(sessionID)` after replacing messages, system, tools and the output cap. With `requireContextHook: true` (set by the server), a turn that succeeds without that mark is rejected: `TurnError("provider", "context hook did not apply …")`. Python then records an error, the reply is missing, and the run becomes `failed`, not `completed`. `release` clears the mark, so a late hook call cannot mark a finished turn.
 - [x] Tests: 2 new in `tests/unit/provider.test.ts` (a reply without the hook is rejected; a reply after the hook resolves, and a late mark is ignored). 107 unit tests pass, 7 Python tests pass, `tsc` 0, build ok, `run-live.py` ready.
-- [ ] Live re-run with the same topic and budget (2 calls × 300 tokens): replies are on topic; the journal and DB show turn sessions in `D:\MyProjects\opencode-discuss`, removed after each turn; superpowers text does not appear in replies.
+- [ ] Live re-run with the same topic and budget (2 calls × 300 tokens): replies are on topic; the journal and DB show turn sessions in `\path\to\opencode-discuss`, removed after each turn; superpowers text does not appear in replies.
 - Side effect: while a turn runs, a session titled “discuss: provider/model” is briefly visible in the project's session list.
 
 ## Task 11b: One request per turn, real errors, request count — done 2026-11-06 (offline)
@@ -496,7 +496,7 @@ Do these after Task 11, highest priority first, and reorder them if live finding
   - Baseline commit `b23627c` with 49 files. The earlier work was never under version control, so history starts here.
   - Before committing: no secrets or files over 200 KB in the tracked set (the only keyword hits were the word “tokens” in prose).
   - The project's `.gitignore` keeps `AGENTS.md`, `CLAUDE.md`, `STATUS.md`, `DECISIONS.md`, `TODO.md` and `.superpowers/` as local, unversioned files, plus `dist/`, `node_modules/` and logs. This was left as it is.
-  - Commits use the existing global Git identity (`thejohnd0e`); no Git config was changed.
+  - Commits use the existing global Git identity; no Git config was changed.
   - Git warns that LF will become CRLF on checkout (global `core.autocrlf`). A `.gitattributes` would pin line endings; it has not been added.
   - From here on, each task is a separate commit.
 - [x] Keep `STATUS.md`, `TODO.md` and the ledger updated after each task (rule recorded in `AGENTS.md`).

@@ -1,10 +1,33 @@
-# Local and service files
+# Local and service files (agent notes, status, plans in progress)
 AGENTS.md
 CLAUDE.md
 STATUS.md
 DECISIONS.md
 TODO.md
 .superpowers/
+.claude/
+.opencode/
+.codex/
+.cursor/
+.aider*
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+
+# Editors
+.vscode/
+.idea/
+*.code-workspace
+
+# Package-manager and tool noise
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.bun/
+.eslintcache
 
 # Secrets and local environment
 .env

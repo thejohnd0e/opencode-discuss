@@ -1,10 +1,39 @@
 # opencode-discuss
 
-A two-model discussion mode for OpenCode. Two selected models discuss a topic
-while you watch a live panel, and the result can be handed to Plan or Build.
+[![build](https://github.com/thejohnd0e/opencode-discuss/actions/workflows/build.yml/badge.svg)](https://github.com/thejohnd0e/opencode-discuss/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![OpenCode](https://img.shields.io/badge/OpenCode-2.2.5-5b6cff.svg)](https://opencode.ai)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Bun](https://img.shields.io/badge/Bun-1.4-f9f1e1.svg?logo=bun&logoColor=black)](https://bun.sh)
+[![Python](https://img.shields.io/badge/Python-3.12-3776ab.svg?logo=python&logoColor=white)](https://www.python.org)
 
-Nothing here patches OpenCode: it is an ordinary plugin package with a server
-part, a TUI part and an RPC contract, plus a standard primary-agent file.
+**A two-model discussion mode for [OpenCode](https://opencode.ai).** Pick two
+models, give them a topic, and watch them discuss it in a colour-coded live panel
+inside the terminal UI. Step in with a remark, change the topic, or stop the run,
+then hand the result to the **Plan** or **Build** agent.
+
+- **Two voices, one panel.** Model A and model B take turns; every reply is
+  labelled and coloured by side, and streams in word by word.
+- **Three modes.** Cooperative, critical and debate.
+- **You stay in control.** Starting always asks for your confirmation, the output
+  cap and round count are explicit, and `/discuss-stop` ends the run at once.
+- **Honest accounting.** The panel shows the requests made against the plan and the
+  tokens and cost OpenCode reported, or says `unknown`.
+- **Hand-off.** Send the discussion's outcome to Plan or Build, once, with a
+  preview and a confirmation.
+- **Safe to leave installed.** Nothing patches OpenCode: it is a normal plugin
+  (server part, TUI part, typed RPC contract) plus two agent files.
+
+> **Cost warning.** Every discussion calls two paid models. The panel and the
+> start dialog show the worst-case number of calls and output tokens up front,
+> but input and reasoning tokens and the orchestrating chat cost extra. Read
+> [Limits](#limits).
+
+## Contents
+
+[How it works](#how-it-works) · [Build](#build) · [Install](#install) ·
+[Use](#use) · [Limits](#limits) · [Tests](#tests) · [Troubleshooting](#troubleshooting) ·
+[Known limitations](#known-limitations) · [Documentation](#documentation) · [License](#license)
 
 ## Requirements
 
@@ -209,6 +238,14 @@ consent, preflight, handoff). Topic and interjection text are never written,
 only their length. Set `DISCUSS_LOG=<file>` to use another file, or
 `DISCUSS_LOG=off` to disable the journal.
 
+## Documentation
+
+- [Architecture](docs/architecture.md): modules, one turn end to end, key decisions.
+- [OpenCode 2.2.5 compatibility](docs/compatibility-2.2.5.md): the verified API surface.
+- [Contributing](CONTRIBUTING.md): checks to run and ground rules.
+- [Implementation plan and ledger](docs/superpowers/plans/2026-11-04-discuss-mode.md):
+  the task-by-task history, including live findings.
+
 ## Known limitations
 
 - Verified live on OpenCode 2.2.5 (Windows): full discussions through the
@@ -225,4 +262,4 @@ only their length. Set `DISCUSS_LOG=<file>` to use another file, or
 
 ## License
 
-TBD.
+[MIT](LICENSE) © 2026 thejohnd0e

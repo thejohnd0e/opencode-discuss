@@ -4,12 +4,41 @@
   "private": true,
   "type": "module",
   "description": "Two-model discussion panel for the OpenCode terminal UI",
+  "license": "MIT",
+  "author": "thejohnd0e",
+  "homepage": "https://github.com/thejohnd0e/opencode-discuss#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thejohnd0e/opencode-discuss.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thejohnd0e/opencode-discuss/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "ai-agents",
+    "multi-model",
+    "llm",
+    "llm-debate",
+    "tui",
+    "terminal",
+    "typescript",
+    "bun",
+    "python"
+  ],
   "exports": {
     ".": "./dist/server.js",
     "./tui": "./dist/tui.js",
     "./rpc": "./dist/rpc.js"
   },
-  "files": ["dist", "scripts", "agents", "README.md"],
+  "files": [
+    "dist",
+    "scripts",
+    "agents",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "bun run build:server && bun run build:rpc && bun run build:tui",
     "build:server": "bun build src/server.ts --target=bun --format=esm --external=@opencode/plugin --external=@opencode/plugin/rpc --external=@opencode/ai --external=@opencode/ai/effect --outfile=dist/server.js",
@@ -19,7 +48,20 @@
     "test": "bun test tests/unit",
     "test:python": "python -m unittest discover -s tests -p \"test_*.py\""
   },
-  "dependencies": { "@opencode/ai": "2.2.5", "@opencode/plugin": "2.2.5" },
-  "peerDependencies": { "@opentui/core": ">=0.8.0", "@opentui/solid": ">=0.8.0", "solid-js": ">=1.9.12" },
-  "devDependencies": { "@types/bun": "latest", "typescript": "^5.5.0", "@opentui/core": "0.8.0", "@opentui/solid": "0.8.0", "solid-js": "1.9.12" }
+  "dependencies": {
+    "@opencode/ai": "2.2.5",
+    "@opencode/plugin": "2.2.5"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.8.0",
+    "@opentui/solid": ">=0.8.0",
+    "solid-js": ">=1.9.12"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.5.0",
+    "@opentui/core": "0.8.0",
+    "@opentui/solid": "0.8.0",
+    "solid-js": "1.9.12"
+  }
 }

@@ -4,8 +4,8 @@ import { normalizeLocation, sameLocation, sessionDirectory, stateKey } from "../
 describe("locations", () => {
   test("backslashes, trailing slashes and drive-path case are normalized", () => {
     expect(normalizeLocation("D:\\MyProjects\\opencode-discuss\\")).toBe("d:/myprojects/opencode-discuss")
-    expect(sameLocation("D:\\MyProjects\\opencode-discuss", "D:/MyProjects/opencode-discuss")).toBe(true)
-    expect(sameLocation("C:\\Users\\<user>", "D:/MyProjects/opencode-discuss")).toBe(false)
+    expect(sameLocation("D:\\Projects\\demo", "D:/Projects/demo")).toBe(true)
+    expect(sameLocation("C:\\Users\\someone", "D:/Projects/demo")).toBe(false)
     expect(sameLocation(undefined, "D:/x")).toBe(false)
   })
 

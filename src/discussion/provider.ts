@@ -1,4 +1,5 @@
 import type { ModelRef, Usage } from "./types"
+import { addUsage, type StepUsage } from "./usage"
 
 export type TurnMessage = {
   role: "system" | "user" | "assistant"
@@ -9,6 +10,8 @@ export type HostEvent =
   | { type: "delta"; sessionID: string; delta: string }
   | { type: "succeeded"; sessionID: string }
   | { type: "failed"; sessionID: string; message?: string }
+  /** Tokens and cost of one model step (`session.step.ended` / `step.failed`). */
+  | { type: "usage"; sessionID: string; usage: StepUsage }
 
 export type SessionHost = {
   create(input: { title: string; agent: string; model: ModelRef; directory: string }): Promise<{ sessionID: string }>
@@ -33,6 +36,8 @@ export class TurnError extends Error {
   readonly kind: TurnErrorKind
   /** Model requests the host made before the turn failed. */
   requests?: number
+  /** Tokens and cost the host reported before the turn failed. */
+  usage?: StepUsage
 
   constructor(kind: TurnErrorKind, message: string) {
     super(message)
@@ -134,6 +139,11 @@ export type TurnRunnerOptions = {
    * silently costs three requests.
    */
   stopOnContinuation?: boolean
+  /**
+   * After the turn succeeded, wait up to this long for the step's usage event
+   * if it has not arrived yet. Default 0 (do not wait).
+   */
+  usageGraceMs?: number
 }
 
 export type TurnRunner = {
@@ -165,16 +175,27 @@ export function createTurnRunner(host: SessionHost, options: TurnRunnerOptions):
       let text = ""
       let settled: HostEvent | null = null
       let failure: string | undefined
+      let usage: StepUsage | undefined
+      let succeededAt = 0
       let unsubscribe: () => void = () => {}
 
       const promise = new Promise<TurnResult>((resolveTurn, rejectTurn) => {
-        const resolve = (result: TurnResult) => resolveTurn({ ...result, requests: registry.steps(sessionID) })
+        const resolve = (result: TurnResult) =>
+          resolveTurn({ ...result, requests: registry.steps(sessionID), ...(usage ? { usage } : {}) })
         const reject = (error: TurnError) => {
           error.requests = registry.steps(sessionID)
+          if (usage) error.usage = usage
           rejectTurn(error)
         }
         unsubscribe = host.subscribe((event) => {
-          if (settled || event.sessionID !== sessionID) return
+          if (event.sessionID !== sessionID) return
+          // Usage counts even after the turn settled: a step that ends late
+          // (e.g. an interrupted continuation) was still paid for.
+          if (event.type === "usage") {
+            usage = addUsage(usage, event.usage)
+            return
+          }
+          if (settled) return
           if (event.type === "delta") {
             text += event.delta
             onDelta(event.delta)
@@ -211,6 +232,14 @@ export function createTurnRunner(host: SessionHost, options: TurnRunnerOptions):
           if (settled) {
             const event = settled as HostEvent
             if (event.type === "succeeded") {
+              const grace = options.usageGraceMs ?? 0
+              if (!usage && grace > 0) {
+                succeededAt = succeededAt || Date.now()
+                if (Date.now() - succeededAt < grace) {
+                  setTimeout(poll, tick)
+                  return
+                }
+              }
               if (options.requireContextHook && !registry.applied(sessionID)) {
                 reject(
                   new TurnError(

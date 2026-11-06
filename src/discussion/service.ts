@@ -1,6 +1,7 @@
 import type { Runner, RunnerEvent, RunnerFinished, RunnerStart } from "./runner"
 import { DiscussionStore } from "./store"
 import type { PreflightFailure } from "./preflight"
+import type { StepUsage } from "./usage"
 import { modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
 
 export type ServiceEvent = {
@@ -176,6 +177,19 @@ export class DiscussionService {
   }
 
   /** Counts model requests made for the active run (called by the provider bridge). */
+  /** Adds one turn's host-reported tokens and cost (bridge mode) to the active run. */
+  recordUsage(usage: StepUsage | undefined): void {
+    const active = this.#active
+    if (!active || !usage) return
+    try {
+      this.#deps.store.addUsage(this.#deps.location, active.sessionID, active.runID, usage)
+      const run = this.#deps.store.run(this.#deps.location, active.sessionID, active.runID)
+      this.#emit(active.sessionID, active.runID, "control", { usage: run?.usage ?? {} })
+    } catch {
+      /* the run ended meanwhile */
+    }
+  }
+
   recordRequests(count: number): void {
     const active = this.#active
     if (!active || !count) return

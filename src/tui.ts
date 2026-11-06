@@ -8,6 +8,7 @@ import { applySettingsArgs, describeSettings, SETTINGS_USAGE } from "./ui/settin
 import { createLog, logPath, shape } from "./ui/log"
 import { panelStyle, speakerRole, statusRole, type PanelStyle } from "./ui/panel-style"
 import type { Run, Settings } from "./discussion/types"
+import { describeUsage, ORCHESTRATOR_NOTE } from "./discussion/usage"
 import { createRefresher, viewOf, type Snapshot, type View, type Views } from "./ui/view-state"
 import { choiceOf, mergeSettings, parseChoice, resolveChoice, splitArgs, toOptions, type CatalogModel, type ModelOption } from "./ui/models"
 
@@ -378,6 +379,14 @@ export default Plugin.define({
           const planned = run.settings.rounds * 2
           const over = run.usage.requests > planned
           footer.push(line("discuss.requests", `Model requests: ${run.usage.requests} of ${planned} planned${over ? " — more than planned" : ""}`, over ? style.warning : style.muted))
+        }
+        if (run) {
+          const known = describeUsage(run.usage)
+          // While a run is in progress, "unknown" only means no turn has finished yet.
+          if (known !== "unknown" || run.status !== "running") {
+            footer.push(row("discuss.usage", [["Usage  ", style.label], [known, style.muted]]))
+            footer.push(line("discuss.usage.note", ORCHESTRATOR_NOTE, style.faint))
+          }
         }
         if (run?.error) footer.push(row("discuss.error", [["Error  ", style.error, true], [run.error, style.error]]))
         if (run?.transcript) footer.push(row("discuss.transcript", [["Transcript  ", style.label], [run.transcript, style.faint]]))

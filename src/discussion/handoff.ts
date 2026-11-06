@@ -1,3 +1,4 @@
+import { describeUsage, ORCHESTRATOR_NOTE } from "./usage"
 import type { Run } from "./types"
 
 const clip = (text: string, limit = 4000) =>
@@ -50,13 +51,8 @@ export function buildHandoff(run: Run): string {
   if (controls.length) lines.push("", "## Human remarks and topic changes", ...controls)
   if (run.error) lines.push("", "## Error", run.error)
   if (run.transcript) lines.push("", `Full transcript: ${run.transcript}`)
-  if (run.usage) {
-    const usage = [
-      run.usage.input === undefined ? undefined : `input ${run.usage.input}`,
-      run.usage.output === undefined ? undefined : `output ${run.usage.output}`,
-      run.usage.cost === undefined ? undefined : `cost ${run.usage.cost}`,
-    ].filter(Boolean)
-    if (usage.length) lines.push("", `Recorded usage: ${usage.join(", ")}`)
-  }
+  lines.push("", `Participant usage: ${describeUsage(run.usage)}`)
+  if (run.usage?.requests) lines.push(`Model requests: ${run.usage.requests}`)
+  lines.push(ORCHESTRATOR_NOTE)
   return lines.join("\n")
 }

@@ -11,6 +11,7 @@ import { createRunner } from "./discussion/runner"
 import { DEFAULT_RUNNER } from "./paths"
 import { errorShape, explainRefusal, requireConsent, START_ACTION } from "./discussion/consent"
 import { preflight, type CatalogModel } from "./discussion/preflight"
+import { stepUsage, type StepUsage } from "./discussion/usage"
 import { createLog, logPath } from "./ui/log"
 import { sameLocation, sessionDirectory } from "./discussion/location"
 import { DiscussionService, type ServiceEvent } from "./discussion/service"
@@ -89,11 +90,21 @@ export default Plugin.define({
         const controller = new AbortController()
         void (async () => {
           for await (const event of ctx.event.subscribe({
-            types: ["session.text.delta", "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"],
+            types: [
+              "session.text.delta",
+              "session.step.ended",
+              "session.step.failed",
+              "session.execution.succeeded",
+              "session.execution.failed",
+              "session.execution.interrupted",
+            ],
             signal: controller.signal,
           })) {
             if (event.type === "session.text.delta") {
               listener({ type: "delta", sessionID: event.data.sessionID, delta: event.data.delta })
+            } else if (event.type === "session.step.ended" || event.type === "session.step.failed") {
+              const usage = stepUsage(event.data)
+              if (usage) listener({ type: "usage", sessionID: event.data.sessionID, usage })
             } else if (event.type === "session.execution.succeeded") {
               listener({ type: "succeeded", sessionID: event.data.sessionID })
             } else if (event.type === "session.execution.interrupted") {
@@ -158,6 +169,7 @@ export default Plugin.define({
       registry,
       requireContextHook: true,
       stopOnContinuation: true,
+      usageGraceMs: 500,
     })
 
     let registration: any
@@ -213,10 +225,13 @@ export default Plugin.define({
               )
             } catch (error) {
               service?.recordRequests((error as { requests?: number })?.requests ?? 0)
+              service?.recordUsage((error as { usage?: StepUsage })?.usage)
               throw error
             }
             service?.recordRequests(result.requests ?? 0)
-            return { text: result.text, ...(result.usage ? { usage: result.usage } : {}) }
+            service?.recordUsage(result.usage)
+            // Usage is recorded here on the server and not sent to Python, so it is never counted twice.
+            return { text: result.text }
           },
         }),
     })

@@ -1,3 +1,4 @@
+import { addUsage, type StepUsage } from "./usage"
 import { randomUUID } from "node:crypto"
 import {
   MAX_OUTPUT_TOKENS,
@@ -98,7 +99,7 @@ function usage(value: unknown, where: string): Usage | undefined {
   if (value === undefined) return undefined
   if (!isRecord(value)) fail(`${where} must be an object`)
   const result: Usage = {}
-  for (const key of ["input", "output", "cost", "requests"] as const) {
+  for (const key of ["input", "output", "reasoning", "cost", "requests"] as const) {
     const entry = value[key]
     if (entry === undefined) continue
     if (typeof entry !== "number" || !Number.isFinite(entry)) fail(`${where}.${key} is invalid`)
@@ -449,6 +450,13 @@ export class DiscussionStore {
   setUsage(location: string, sessionID: string, runID: string, value: Usage): number {
     const run = this.#requireRun(location, sessionID, runID)
     run.usage = { ...run.usage, ...value }
+    return this.#touch()
+  }
+
+  /** Adds one turn's tokens and cost to the run's totals. */
+  addUsage(location: string, sessionID: string, runID: string, value: StepUsage): number {
+    const run = this.#requireRun(location, sessionID, runID)
+    run.usage = addUsage(run.usage, value)
     return this.#touch()
   }
 

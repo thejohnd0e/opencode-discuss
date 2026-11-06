@@ -18,7 +18,9 @@ then hand the result to the **Plan** or **Build** agent.
 
 - **Two voices, one panel.** Model A and model B take turns; every reply is
   labelled and coloured by side, and streams in word by word.
-- **Three modes.** Cooperative, critical and debate.
+- **Three modes.** Cooperative, critical and debate. In a debate each reply must
+  quote the opponent's points and answer them, and the panel flags a reply that
+  did not.
 - **Joint conclusion.** Optionally, one participant sums the discussion up at the
   end: what both agree on, where they still disagree, recommended next steps.
   The handoff puts it first.
@@ -211,6 +213,19 @@ enter the topic in the dialog.
   children.
 - A result is handed off at most once, even after a restart; start a new
   discussion to hand off again.
+
+## Debate: answering the opponent
+
+In `mode=debate` every reply after the first starts with one or two verbatim
+quotes from the opponent's last reply (lines starting with `>`), each answered:
+rebutted with a reason, or accepted. Only then comes at most one new argument.
+This keeps a debate from turning into two parallel monologues.
+
+The quotes are checked against the opponent's reply (quote marks, case and a
+slipped word do not matter; a paraphrase or an invented quote does not count).
+The panel shows "✓ Answers 2 points of the opponent", or a warning when a reply
+quoted nothing or quoted something the opponent never said; the handoff flags
+such replies too. No extra request is made for this.
 
 ## Joint conclusion
 

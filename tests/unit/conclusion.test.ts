@@ -126,14 +126,18 @@ describe("conclusion in a run", () => {
   test("a run with both replies and the conclusion completes, and the conclusion is stored as such", async () => {
     const { runner, service, runID } = await setup({ ...base, conclusion: "a" })
     runner.emit({ type: "message", speaker: "p/left", round: 1, text: "one" })
-    runner.emit({ type: "message", speaker: "p/right", round: 1, text: "two" })
+    runner.emit({ type: "message", speaker: "p/right", round: 1, text: "two", check: { quoted: 1, matched: 0 } })
+    runner.emit({ type: "message", speaker: "p/right", round: 1, text: "bad", check: { quoted: 1, matched: 5 } } as never)
     runner.emit({ type: "delta", speaker: "p/left", round: 1, text: "Agr", conclusion: true })
     runner.emit({ type: "message", speaker: "p/left", round: 1, text: "Agreed: …", conclusion: true })
     runner.finish({ status: "completed", messages: 3, stopped: false, exitCode: 0 })
     const run = await settled(service, runID)
     expect(run?.status).toBe("completed")
-    expect(run?.messages.map((message) => message.kind ?? "reply")).toEqual(["reply", "reply", "conclusion"])
-    expect(run?.messages[2].speaker).toBe("a")
+    expect(run?.messages.map((message) => message.kind ?? "reply")).toEqual(["reply", "reply", "reply", "conclusion"])
+    expect(run?.messages[3].speaker).toBe("a")
+    // the service keeps a valid answer check and drops an impossible one
+    expect(run?.messages[1].check).toEqual({ quoted: 1, matched: 0 })
+    expect(run?.messages[2].check).toBeUndefined()
   })
 
   test("a run whose conclusion is missing is failed with a clear reason", async () => {

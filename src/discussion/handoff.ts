@@ -1,4 +1,5 @@
 import { describeUsage, ORCHESTRATOR_NOTE } from "./usage"
+import { answerNote } from "./answer"
 import { dialogueReplies, isDialogueReply, modelLabel, type Run } from "./types"
 
 const clip = (text: string, limit = 4000) =>
@@ -24,7 +25,11 @@ export function buildHandoff(run: Run): string {
 
   const statements = run.messages
     .filter(isDialogueReply)
-    .map((message) => `- [${message.label}, round ${message.round}] ${clip(message.text)}`)
+    .map((message) => {
+      const note = answerNote(message.check)
+      const flag = note?.warn ? ` (${note.text.toLowerCase()})` : ""
+      return `- [${message.label}, round ${message.round}]${flag} ${clip(message.text)}`
+    })
 
   const controls = run.messages
     .filter((message) => message.speaker === "human" || message.speaker === "topic")

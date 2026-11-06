@@ -278,5 +278,86 @@ class BridgeProtocolTest(unittest.TestCase):
         host.finish()
 
 
+def load_runner_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("discuss_runner", RUNNER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class AnswerCheckTest(unittest.TestCase):
+    OPPONENT = ("Поэтапный рефакторинг обычно безопаснее: он сохраняет работающие функции, "
+                "позволяет проверять каждое изменение и снижает риск сорвать сроки.")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.runner = load_runner_module()
+
+    def check(self, reply):
+        return self.runner.check_answer(reply, self.OPPONENT)
+
+    def test_exact_quote_with_other_quote_marks_and_case(self):
+        self.assertEqual(self.check("> «поэтапный рефакторинг, обычно безопаснее!»\nНе всегда."),
+                         {"quoted": 1, "matched": 1})
+
+    def test_quote_with_an_ellipsis_and_over_two_lines(self):
+        self.assertEqual(self.check("> он сохраняет работающие функции … снижает риск\nОтвет"),
+                         {"quoted": 1, "matched": 1})
+        self.assertEqual(self.check("> позволяет проверять\n> каждое изменение и снижает риск\nОтвет"),
+                         {"quoted": 1, "matched": 1})
+
+    def test_a_one_word_slip_is_tolerated(self):
+        self.assertEqual(self.check("> он сохраняет рабочие функции, позволяет проверять каждое изменение\nОтвет"),
+                         {"quoted": 1, "matched": 1})
+
+    def test_paraphrase_and_invented_quotes_do_not_match(self):
+        self.assertEqual(self.check("> постепенный рефакторинг надёжнее и бережёт сроки\nОтвет"),
+                         {"quoted": 1, "matched": 0})
+        self.assertEqual(self.check("> переписывание всегда дешевле в долгосрочной перспективе\nОтвет"),
+                         {"quoted": 1, "matched": 0})
+
+    def test_no_quote_and_too_short_quotes_count_as_none(self):
+        self.assertEqual(self.check("Я считаю, что переписать лучше."), {"quoted": 0, "matched": 0})
+        self.assertEqual(self.check("> да\nНет."), {"quoted": 0, "matched": 0})
+
+    def test_two_quotes_one_real(self):
+        self.assertEqual(self.check("> Поэтапный рефакторинг обычно безопаснее\nДа.\n\n"
+                                    "> выдуманная цитата которой нет вообще\nНет."),
+                         {"quoted": 2, "matched": 1})
+
+
+class DebateAnswerProtocolTest(unittest.TestCase):
+    def test_debate_turns_after_the_first_must_quote_and_are_checked(self):
+        host = Host("--debate", rounds=1)
+        self.addCleanup(host.close)
+        host.wait_for("started")
+        first = host.wait_for("generate")
+        self.assertNotIn("дословных цитат", first["messages"][0]["content"])
+        host.reply(first, "Рефакторинг по шагам безопаснее и дешевле для команды.")
+        self.assertNotIn("check", host.wait_for("message"))
+
+        second = host.wait_for("generate")
+        self.assertIn("дословных цитат", second["messages"][0]["content"])
+        host.reply(second, "> рефакторинг по шагам безопаснее\nНе всегда: долги копятся.")
+        message = host.wait_for("message")
+        self.assertEqual(message["check"], {"quoted": 1, "matched": 1})
+        host.wait_for("done")
+        host.finish()
+
+    def test_cooperative_turns_have_no_rule_and_no_check(self):
+        host = Host(rounds=1)
+        self.addCleanup(host.close)
+        host.wait_for("started")
+        host.reply(host.wait_for("generate"), "one")
+        host.wait_for("message")
+        second = host.wait_for("generate")
+        self.assertNotIn("дословных цитат", second["messages"][0]["content"])
+        host.reply(second, "two")
+        self.assertNotIn("check", host.wait_for("message"))
+        host.wait_for("done")
+        host.finish()
+
+
 if __name__ == "__main__":
     unittest.main()

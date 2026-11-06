@@ -7,7 +7,15 @@ import type { Mode, Status } from "./types"
 
 export type RunnerEvent =
   | { type: "started"; a: string; b: string; topic: string; rounds: number; models: string[]; bridge?: boolean }
-  | { type: "message"; speaker: string; round: number; text: string; seconds?: number; conclusion?: boolean }
+  | {
+      type: "message"
+      speaker: string
+      round: number
+      text: string
+      seconds?: number
+      conclusion?: boolean
+      check?: { quoted: number; matched: number }
+    }
   | { type: "delta"; speaker: string; round: number; text: string; conclusion?: boolean }
   | { type: "control"; command: string; text?: string }
   | { type: "transcript"; path: string; raw?: string }

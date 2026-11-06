@@ -1,4 +1,5 @@
 import { addUsage, type StepUsage } from "./usage"
+import { validAnswerCheck } from "./answer"
 import { randomUUID } from "node:crypto"
 import {
   MAX_OUTPUT_TOKENS,
@@ -83,6 +84,8 @@ function message(value: unknown, where: string): Message {
   if (seconds !== undefined && typeof seconds !== "number") fail(`${where}.seconds is invalid`)
   const kind = value.kind
   if (kind !== undefined && kind !== "conclusion") fail(`${where}.kind is invalid`)
+  const check = value.check
+  if (check !== undefined && !validAnswerCheck(check)) fail(`${where}.check is invalid`)
   return {
     speaker: speaker as Message["speaker"],
     label,
@@ -90,6 +93,7 @@ function message(value: unknown, where: string): Message {
     text,
     ...(seconds === undefined ? {} : { seconds }),
     ...(kind === undefined ? {} : { kind }),
+    ...(check === undefined ? {} : { check: { quoted: check.quoted, matched: check.matched } }),
   }
 }
 

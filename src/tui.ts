@@ -7,6 +7,7 @@ import { sessionDirectory } from "./discussion/location"
 import { applySettingsArgs, checkSettingsArgs, conclusionText, describeSettings, SETTINGS_USAGE } from "./ui/settings"
 import { createLog, logPath, shape } from "./ui/log"
 import { textBlocks } from "./ui/markdown"
+import { answerNote, type AnswerNote } from "./discussion/answer"
 import { panelStyle, speakerRole, statusRole, type PanelStyle } from "./ui/panel-style"
 import { callBound, dialogueReplies, isDialogueReply, type Run, type Settings } from "./discussion/types"
 import { describeUsage, ORCHESTRATOR_NOTE } from "./discussion/usage"
@@ -53,7 +54,7 @@ function row(id: string, pieces: Array<[string, unknown?, boolean?]>) {
  * One reply: a coloured bar on the left and a header naming the side, the
  * model and the round, so it is always clear who says what.
  */
-function bubble(id: string, header: Header, body: string, color: unknown, style: PanelStyle, live = false) {
+function bubble(id: string, header: Header, body: string, color: unknown, style: PanelStyle, live = false, note: AnswerNote | null = null) {
   const box = createElement("box")
   setProp(box, "id", id)
   setProp(box, "flexDirection", "column")
@@ -64,6 +65,8 @@ function bubble(id: string, header: Header, body: string, color: unknown, style:
   if (color !== undefined) setProp(box, "borderColor", color)
   // Who speaks in the side colour and bold; time and "writing…" in plain grey.
   insert(box, header.meta ? row(`${id}.head`, [[header.who, color, true], [header.meta, style.muted]]) : line(`${id}.head`, header.who, color, true))
+  // Debate: whether this reply answered the opponent's arguments (Task 15a).
+  if (note) insert(box, line(`${id}.note`, `${note.warn ? "⚠ " : "✓ "}${note.text}`, note.warn ? style.warning : style.faint))
   const textColor = live ? style.muted : style.body
   // Markdown headings (the conclusion's sections) show as bold lines, not "## …".
   const blocks = textBlocks(body)
@@ -392,7 +395,7 @@ export default Plugin.define({
         run?.messages.forEach((message, index) => {
           const conclusion = message.kind === "conclusion"
           const color = conclusion ? style.success : style[speakerRole(message.speaker)]
-          insert(box, bubble(`discuss.msg.${index}`, sideHeader(message.speaker, message.label, message.round, message.seconds, false, conclusion), message.text, color, style))
+          insert(box, bubble(`discuss.msg.${index}`, sideHeader(message.speaker, message.label, message.round, message.seconds, false, conclusion), message.text, color, style, false, answerNote(message.check)))
         })
         if (run?.partial) {
           const conclusion = run.partial.kind === "conclusion"

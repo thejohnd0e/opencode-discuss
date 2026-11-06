@@ -40,6 +40,7 @@ const message = object(
     text: { type: "string" },
     seconds: { type: "number" },
     kind: { type: "string", enum: ["conclusion"] },
+    check: object({ quoted: { type: "number" }, matched: { type: "number" } }, ["quoted", "matched"]),
   },
   ["speaker", "label", "round", "text"],
 )

@@ -1,3 +1,5 @@
+import type { AnswerCheck } from "./answer"
+
 export type Status = "idle" | "running" | "completed" | "cancelled" | "failed"
 export type Mode = "cooperative" | "critical" | "debate"
 /** Who writes the joint conclusion after the rounds; `none` (or absent) means no conclusion. */
@@ -31,6 +33,8 @@ export type Message = {
   seconds?: number
   /** Set on the joint conclusion written after the rounds. */
   kind?: "conclusion"
+  /** Debate replies: quotes of the opponent's last reply, and how many were really there. */
+  check?: AnswerCheck
 }
 
 export type PartialMessage = {

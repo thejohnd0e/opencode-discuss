@@ -21,10 +21,12 @@ control, transcript, error, done. Control lines may arrive as the legacy plain
 text (`stop`, `topic …`, `interject …`) or as JSON commands.
 """
 import argparse
+import difflib
 import importlib.util
 import json
 import pathlib
 import queue
+import re
 import sys
 import threading
 import time
@@ -70,6 +72,79 @@ CONCLUSION_SYSTEM = (
     "Без вступления, до 300 слов. Не используй инструменты, не читай файлы, не запускай "
     "команды: просто ответь текстом."
 )
+
+
+# Debate turns must answer the opponent, not run a parallel monologue
+# (Task 15a). The quotes are checked against the opponent's last reply.
+DEBATE_ANSWER_RULE = (
+    "\n\nФормат реплики в споре. Начни с одной-двух дословных цитат из последней реплики "
+    "{other}: каждая на отдельной строке, начинающейся с «> ». Под каждой цитатой ответь именно "
+    "на неё: опровергни с основанием или прямо прими. Копируй цитаты точно, не пересказывай. "
+    "Только после этого — не больше одного нового довода."
+)
+
+QUOTE_LINE = re.compile(r"^\s*>\s?(.*)$")
+ELLIPSIS = re.compile(r"\.\.\.|…|\[\.\.\.\]")
+MIN_QUOTE_WORDS = 3
+MATCH_RATIO = 0.8
+
+
+def normalize(text):
+    """Case, quote marks, punctuation and spacing do not matter for a quote."""
+    return " ".join(re.sub(r"[^\w]+", " ", text.lower()).split())
+
+
+def extract_quotes(text):
+    """Quoted passages: runs of lines that start with `>`."""
+    quotes, current = [], []
+    for line in text.splitlines():
+        match = QUOTE_LINE.match(line)
+        if match:
+            current.append(match.group(1))
+        elif current:
+            quotes.append(" ".join(current))
+            current = []
+    if current:
+        quotes.append(" ".join(current))
+    return [quote for quote in quotes if len(normalize(quote).split()) >= MIN_QUOTE_WORDS]
+
+
+def best_window_ratio(words, target):
+    """Best word-level similarity of `words` to any stretch of `target` of about the same length."""
+    size = len(words)
+    best = 0.0
+    for width in (size - 1, size, size + 1, size + 2):
+        if width < 1:
+            continue
+        for start in range(0, max(1, len(target) - width + 1)):
+            window = target[start:start + width]
+            ratio = difflib.SequenceMatcher(None, words, window, autojunk=False).ratio()
+            if ratio > best:
+                best = ratio
+                if best == 1.0:
+                    return best
+    return best
+
+
+def quote_found(quote, source):
+    """Every part of the quote (split at an ellipsis) is in the source, allowing small edits."""
+    target = normalize(source)
+    target_words = target.split()
+    for piece in ELLIPSIS.split(quote):
+        part = normalize(piece)
+        if len(part.split()) < 2:
+            continue
+        if part in target:
+            continue
+        if best_window_ratio(part.split(), target_words) < MATCH_RATIO:
+            return False
+    return True
+
+
+def check_answer(reply, opponent):
+    """How many quotes the reply has, and how many are really in the opponent's reply."""
+    quotes = extract_quotes(reply)
+    return {"quoted": len(quotes), "matched": sum(1 for quote in quotes if quote_found(quote, opponent))}
 
 
 def conclusion_messages(me, other, topic, history):
@@ -254,8 +329,11 @@ def main():
 
         side = sides[turn_index % 2]
         other = sides[(turn_index + 1) % 2]
+        opponent_last = next((turn for turn in reversed(dialogue.history)
+                              if turn["speaker"] == other["name"]), None)
+        answer_rule = DEBATE_ANSWER_RULE.format(other=other["name"]) if args.debate and opponent_last else ""
         messages = engine.build_messages(side["name"], other["name"], dialogue.history,
-                                         dialogue.topic, critical_context, **mode_kwargs)
+                                         dialogue.topic, critical_context + answer_rule, **mode_kwargs)
         started = time.time()
         buffer = {"text": "", "sent": 0.0}
 
@@ -316,8 +394,9 @@ def main():
             continue
         dialogue.history.append({"speaker": side["name"], "text": text,
                                  "seconds": round(time.time() - started, 1)})
+        extra = {"check": check_answer(text, opponent_last["text"])} if answer_rule else {}
         emit(type="message", speaker=side["name"], round=turn_index // 2 + 1,
-             text=text, seconds=round(time.time() - started, 1))
+             text=text, seconds=round(time.time() - started, 1), **extra)
 
     replied = any(turn["speaker"] in (sides[0]["name"], sides[1]["name"]) for turn in dialogue.history)
     if args.conclusion != "none" and replied and not dialogue.stop.is_set():

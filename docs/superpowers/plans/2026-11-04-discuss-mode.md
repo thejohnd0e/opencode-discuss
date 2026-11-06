@@ -481,15 +481,21 @@ Do these after Task 11, highest priority first, and reorder them if live finding
 6. [ ] **Handoff live check:** the preview blocks while running, confirmation is required, it submits exactly once, and it switches the agent without changing the session model. Do this only after items 1–3.
 7. [ ] Lower priority: the exact `LineDecoder` byte cap when a chunk contains a newline, and pruning of the idempotency map.
 
-## Task 13: Project hygiene (needs authorization where noted)
+## Task 13: Project hygiene — done 2026-11-06
 
-- [ ] Add a short `AGENTS.md` (and a `CLAUDE.md` pointing to it) with:
+- [x] Added `AGENTS.md` (and a `CLAUDE.md` that imports it) with:
   - the verification commands;
   - "never edit `~/.config/opencode` without approval";
   - "`model-duel.py` is frozen";
   - pointers to `STATUS.md` and the progress ledger.
-- [ ] With authorization, initialize a local Git repository on branch `master` before the Task 12 changes so that each task is a reviewable commit. Do not publish.
-- [ ] Keep `STATUS.md`, `TODO.md` and the ledger updated after each task.
+- [x] With the user's authorization (2026-11-06): local Git repository on branch `master`, no remote, nothing published.
+  - Baseline commit `b23627c` with 49 files. The earlier work was never under version control, so history starts here.
+  - Before committing: no secrets or files over 200 KB in the tracked set (the only keyword hits were the word “tokens” in prose).
+  - The project's `.gitignore` keeps `AGENTS.md`, `CLAUDE.md`, `STATUS.md`, `DECISIONS.md`, `TODO.md` and `.superpowers/` as local, unversioned files, plus `dist/`, `node_modules/` and logs. This was left as it is.
+  - Commits use the existing global Git identity (`thejohnd0e`); no Git config was changed.
+  - Git warns that LF will become CRLF on checkout (global `core.autocrlf`). A `.gitattributes` would pin line endings; it has not been added.
+  - From here on, each task is a separate commit.
+- [x] Keep `STATUS.md`, `TODO.md` and the ledger updated after each task (rule recorded in `AGENTS.md`).
 
 ## Phase 2 delivery checkpoints
 

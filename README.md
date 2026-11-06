@@ -208,6 +208,11 @@ enter the topic in the dialog.
   queued.
 - No automatic retries. Restarting OpenCode marks an unfinished run `cancelled`
   with reason `interrupted by restart`.
+- A failed reply (provider error, timeout, empty reply, or an output limit used
+  up by reasoning) ends the run at once, without the remaining replies or the
+  conclusion.
+- Debates need more room per reply: use `tokens=3000` or more; the start dialog
+  warns below that.
 - `/discuss-stop` interrupts the current reply and ends the run; a dialogue
   process that does not exit within 5 seconds is killed together with its
   children.

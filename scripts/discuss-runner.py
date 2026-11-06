@@ -460,7 +460,10 @@ def main():
         " при которых предложение не сработает. Не спорь ради спора."
         if args.critical else ""
     )
-    errors = 0
+    # A run with a missing reply is failed anyway, so the first failed turn ends
+    # it: going on only spends money, and in a debate the other side keeps
+    # answering the same old reply (live 2026-11-07, run a455d79a).
+    failed_turn = False
     ledger = Ledger() if args.debate else None
     for turn_index in range(args.rounds * 2):
         dialogue.drain_controls()
@@ -511,11 +514,9 @@ def main():
                              partial=True)
                     break
                 if status != "ok":
-                    errors += 1
                     emit(type="error", message=f"{side['name']}: {text}", round=turn_index // 2 + 1)
-                    if errors >= 2:
-                        break
-                    continue
+                    failed_turn = True
+                    break
                 if usage:
                     emit(type="usage", speaker=side["name"], **usage)
             else:
@@ -525,25 +526,23 @@ def main():
                 text, _thinking = engine.stream_http(
                     side, messages, args.max_tokens, args.temperature, dialogue.stop.is_set, on_delta,
                 )
-            errors = 0
-        except Exception as error:  # noqa: BLE001 - report to the panel, keep going once
-            errors += 1
+        except Exception as error:  # noqa: BLE001 - report to the panel and end the run
             emit(type="error", message=f"{side['name']}: {error}", round=turn_index // 2 + 1)
-            if errors >= 2:
-                break
-            time.sleep(2)
-            continue
+            failed_turn = True
+            break
 
         if not text:
             emit(type="error", message=f"{side['name']}: empty reply", round=turn_index // 2 + 1)
-            continue
+            failed_turn = True
+            break
         extra = {}
         if ledger:
             text, record = ledger.apply(me_letter, text, turn_index // 2 + 1)
             extra["ledger"] = record
             if not text:
                 emit(type="error", message=f"{side['name']}: empty reply", round=turn_index // 2 + 1)
-                continue
+                failed_turn = True
+                break
         dialogue.history.append({"speaker": side["name"], "text": text,
                                  "seconds": round(time.time() - started, 1)})
         if answer_rule:
@@ -552,7 +551,7 @@ def main():
              text=text, seconds=round(time.time() - started, 1), **extra)
 
     replied = any(turn["speaker"] in (sides[0]["name"], sides[1]["name"]) for turn in dialogue.history)
-    if args.conclusion != "none" and replied and not dialogue.stop.is_set():
+    if args.conclusion != "none" and replied and not failed_turn and not dialogue.stop.is_set():
         if bridge is None:
             emit(type="error", message="conclusion: only supported in bridge mode")
         else:

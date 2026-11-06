@@ -136,31 +136,44 @@ class BridgeProtocolTest(unittest.TestCase):
         self.assertEqual(done["messages"], 0)
         self.assertEqual(host.finish(), 0)
 
-    def test_empty_reply_is_reported_and_the_turn_is_skipped(self):
-        host = self.host(rounds=1)
-        host.wait_for("started")
-        first = host.wait_for("generate")
-        host.reply(first, "")
-        error = host.wait_for("error")
-        self.assertIn("empty reply", error["message"])
-        second = host.wait_for("generate")
-        host.reply(second, "right")
-        done = host.wait_for("done")
-        self.assertEqual(done["messages"], 1)
-        self.assertEqual(host.finish(), 0)
+    def collect_until_done(self, host):
+        events = []
+        while True:
+            event = host.next()
+            events.append(event)
+            if event["type"] == "done":
+                return events
 
-    def test_two_generation_errors_stop_the_run(self):
+    def test_an_empty_reply_ends_the_run_without_another_request(self):
         host = self.host(rounds=2)
         host.wait_for("started")
-        first = host.wait_for("generate")
-        host.send(type="generation_error", requestID=first["requestID"], message="provider down")
-        host.wait_for("error")
+        host.reply(host.wait_for("generate"), "")
+        events = self.collect_until_done(host)
+        self.assertIn("empty reply", [e for e in events if e["type"] == "error"][0]["message"])
+        self.assertFalse([e for e in events if e["type"] == "generate"])
+        self.assertEqual(events[-1]["messages"], 0)
+        self.assertEqual(host.finish(), 0)
+
+    def test_a_generation_error_ends_the_run_without_another_request(self):
+        host = self.host(rounds=2)
+        host.wait_for("started")
+        host.reply(host.wait_for("generate"), "left")
         second = host.wait_for("generate")
         host.send(type="generation_error", requestID=second["requestID"], message="provider down")
-        host.wait_for("error")
-        done = host.wait_for("done")
-        self.assertEqual(done["messages"], 0)
+        events = self.collect_until_done(host)
+        self.assertIn("provider down", [e for e in events if e["type"] == "error"][0]["message"])
+        self.assertFalse([e for e in events if e["type"] == "generate"])
+        self.assertEqual(events[-1]["messages"], 1)
         self.assertEqual(host.finish(), 0)
+
+    def test_a_failed_turn_gets_no_conclusion(self):
+        host = self.host("--conclusion", "b", rounds=1)
+        host.wait_for("started")
+        host.reply(host.wait_for("generate"), "left")
+        second = host.wait_for("generate")
+        host.send(type="generation_error", requestID=second["requestID"], message="limit")
+        events = self.collect_until_done(host)
+        self.assertFalse([e for e in events if e["type"] == "generate"])
 
     def test_a_silent_host_times_out_instead_of_hanging(self):
         host = self.host(rounds=1, timeout=0.3)

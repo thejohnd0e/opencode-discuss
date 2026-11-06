@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { applySettingsArgs, checkSettingsArgs } from "../../src/ui/settings"
+import { applySettingsArgs, checkSettingsArgs, debateTokenWarning } from "../../src/ui/settings"
 import type { Settings } from "../../src/discussion/types"
 
 const saved: Settings = {
@@ -56,5 +56,18 @@ describe("checking arguments before a pair exists", () => {
     expect(checkSettingsArgs(["rounds=0"])).toContain("rounds")
     expect(checkSettingsArgs(["colour=red"])).toContain("Unknown")
     expect(checkSettingsArgs(["tokens=abc"])).toContain("whole number")
+  })
+})
+
+describe("debate token warning", () => {
+  const debate = { a: { providerID: "p", modelID: "a" }, b: { providerID: "p", modelID: "b" }, mode: "debate" as const, rounds: 3, maxOutputTokens: 1500 }
+
+  test("warns for a debate below the safe cap and names the fix", () => {
+    expect(debateTokenWarning(debate)).toContain("tokens=3000")
+  })
+
+  test("no warning at the safe cap or outside debate", () => {
+    expect(debateTokenWarning({ ...debate, maxOutputTokens: 3000 })).toBeNull()
+    expect(debateTokenWarning({ ...debate, mode: "cooperative" })).toBeNull()
   })
 })

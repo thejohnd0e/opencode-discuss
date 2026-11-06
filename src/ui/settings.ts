@@ -94,3 +94,15 @@ export function checkSettingsArgs(args: string[]): string | null {
   const result = applySettingsArgs(args, PROBE)
   return result.ok ? null : result.reason
 }
+
+/**
+ * Debate replies carry quotes, answers and a claims block, and reasoning
+ * models spend part of the cap before any text. At 1500 tokens one side failed
+ * twice in a 3-round debate (live 2026-11-07), so warn below this.
+ */
+export const DEBATE_MIN_TOKENS = 3000
+
+export function debateTokenWarning(settings: Settings): string | null {
+  if (settings.mode !== "debate" || settings.maxOutputTokens >= DEBATE_MIN_TOKENS) return null
+  return `Debate replies are long and reasoning models may use up ${settings.maxOutputTokens} tokens before writing anything; ${DEBATE_MIN_TOKENS}+ is safer (/discuss-settings tokens=${DEBATE_MIN_TOKENS}).`
+}

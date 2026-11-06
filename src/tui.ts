@@ -4,7 +4,7 @@ import { createElement, insert, setProp } from "@opentui/solid"
 import { createEffect, createRoot, createSignal, getOwner, on, runWithOwner, type Owner } from "solid-js"
 import { DiscussRpc } from "./rpc"
 import { sessionDirectory } from "./discussion/location"
-import { applySettingsArgs, checkSettingsArgs, conclusionText, describeSettings, SETTINGS_USAGE } from "./ui/settings"
+import { applySettingsArgs, checkSettingsArgs, conclusionText, debateTokenWarning, describeSettings, SETTINGS_USAGE } from "./ui/settings"
 import { createLog, logPath, shape } from "./ui/log"
 import { textBlocks } from "./ui/markdown"
 import { answerNote, type AnswerNote } from "./discussion/answer"
@@ -772,7 +772,11 @@ export default Plugin.define({
             try {
               await discuss.settingsSet({ sessionID, settings: change.settings })
               await refresh(sessionID)
-              toast(`Discuss: ${change.changed.join(", ")}\n${describeSettings(change.settings)}`, "success")
+              const warning = debateTokenWarning(change.settings)
+              toast(
+                `Discuss: ${change.changed.join(", ")}\n${describeSettings(change.settings)}${warning ? `\n⚠ ${warning}` : ""}`,
+                warning ? "warning" : "success",
+              )
             } catch (error) {
               toast(String((error as Error)?.message ?? error))
             }
@@ -809,6 +813,7 @@ export default Plugin.define({
                 `Mode: ${settings.mode} · rounds: ${settings.rounds} · max output: ${settings.maxOutputTokens} · ${conclusionText(settings)}`,
                 `Ceiling: ${callBound(settings).participantCalls} participant calls, ${callBound(settings).worstCaseOutputTokens} output tokens.`,
                 "Both participants see the topic and each other's replies.",
+                ...(debateTokenWarning(settings) ? ["", `⚠ ${debateTokenWarning(settings)}`] : []),
               ].join("\n"),
               label: { confirm: "Start", cancel: "Cancel" },
             })

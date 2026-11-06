@@ -196,8 +196,6 @@ disable the journal.
 
 - A full live discussion through the server bridge has not been verified yet;
   only offline tests and the isolated load check are green.
-- `tests/live-plugin/` is the previous TUI-owned harness and is not used by the
-  current runner.
 - The orchestrating agent's own model calls are additional cost and are not
   attributed automatically.
 - Resume, concurrent runs in one location and semantic synthesis of agreements

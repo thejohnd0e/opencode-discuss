@@ -563,14 +563,15 @@ went unanswered.
 
 - [x] Found live 2026-11-07 (run `9cf52f39`, English topic): one model and its conclusion answered in Russian, because the Russian-worded "answer in the topic's language" rule is weaker than the Russian instructions. Now the rule quotes the topic and, for a topic in Latin script, is written in English ("not in Russian"); it is recomputed when the topic changes.
 
-### 15b: Claim ledger
+### 15b: Claim ledger — done offline 2026-11-07
 
-- [ ] Each reply ends with a short list of its own numbered claims (A1, A2, B1…);
+- [x] Each reply ends with a short list of its own numbered claims (A1, A2, B1…);
   the opponent must close open claims by number (rebutted / accepted).
-- [ ] The runner keeps each claim's state (open, rebutted, accepted); a reply
+- [x] The runner keeps each claim's state (open, rebutted, accepted); a reply
   whose ledger block cannot be parsed is kept and marked.
-- [ ] Panel: "answers A2, A3; leaves A1 open". Conclusion built from the ledger:
+- [x] Panel: "answers A2, A3; leaves A1 open". Conclusion built from the ledger:
   claims that stood, were rebutted, or were never answered.
+- [x] Details: the runner numbers claims itself and lists the opponent's open claims in the prompt; the block is `[ledger] … [/ledger]` with `+ A2: …` and `B1: rebutted|accepted` (tolerant to Markdown emphasis, bullets, dashes, a code fence, a missing close tag); only open claims of the opponent can be closed; the block is cut from the stored and streamed text; `Message.ledger` in store and RPC; state derived in TS from the messages (`ledgerOf`); handoff "Claims ledger" section. 204 unit, 27 Python, smoke ready.
 - [ ] Live: a debate of 3 rounds.
 
 ## Phase 2 delivery checkpoints

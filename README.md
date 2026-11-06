@@ -227,6 +227,20 @@ The panel shows "✓ Answers 2 points of the opponent", or a warning when a repl
 quoted nothing or quoted something the opponent never said; the handoff flags
 such replies too. No extra request is made for this.
 
+**Claim ledger.** Each debate reply also ends with a short service block: its new
+claims, and a verdict (`rebutted` or `accepted`) on every open claim of the
+opponent. The plugin numbers the claims (A1, A2, B1…) and tells each side which
+of the opponent's claims are still open, so nothing gets lost. The block is not
+shown in the reply; instead:
+
+- under each reply: "Answers A1 rebutted · leaves A2 open · new B1", with a
+  warning when a claim was left open or the block could not be read;
+- below the discussion, a **Claims** list with the state of every claim: never
+  answered, rebutted or accepted by the opponent;
+- the conclusion is written from the ledger (accepted claims are candidates for
+  *agreed*, rebutted and unanswered ones for *disagreed*), and the handoff gets
+  a "Claims ledger" section.
+
 ## Joint conclusion
 
 With `conclusion=a` or `conclusion=b`, after the last round that participant

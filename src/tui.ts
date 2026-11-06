@@ -8,6 +8,7 @@ import { applySettingsArgs, checkSettingsArgs, conclusionText, describeSettings,
 import { createLog, logPath, shape } from "./ui/log"
 import { textBlocks } from "./ui/markdown"
 import { answerNote, type AnswerNote } from "./discussion/answer"
+import { ledgerOf, replyLedgerNote, statusText, type LedgerNote } from "./discussion/ledger"
 import { panelStyle, speakerRole, statusRole, type PanelStyle } from "./ui/panel-style"
 import { callBound, dialogueReplies, isDialogueReply, type Run, type Settings } from "./discussion/types"
 import { describeUsage, ORCHESTRATOR_NOTE } from "./discussion/usage"
@@ -54,7 +55,7 @@ function row(id: string, pieces: Array<[string, unknown?, boolean?]>) {
  * One reply: a coloured bar on the left and a header naming the side, the
  * model and the round, so it is always clear who says what.
  */
-function bubble(id: string, header: Header, body: string, color: unknown, style: PanelStyle, live = false, note: AnswerNote | null = null) {
+function bubble(id: string, header: Header, body: string, color: unknown, style: PanelStyle, live = false, note: AnswerNote | null = null, ledgerNote: LedgerNote | null = null) {
   const box = createElement("box")
   setProp(box, "id", id)
   setProp(box, "flexDirection", "column")
@@ -67,6 +68,7 @@ function bubble(id: string, header: Header, body: string, color: unknown, style:
   insert(box, header.meta ? row(`${id}.head`, [[header.who, color, true], [header.meta, style.muted]]) : line(`${id}.head`, header.who, color, true))
   // Debate: whether this reply answered the opponent's arguments (Task 15a).
   if (note) insert(box, line(`${id}.note`, `${note.warn ? "⚠ " : "✓ "}${note.text}`, note.warn ? style.warning : style.faint))
+  if (ledgerNote) insert(box, line(`${id}.ledger`, `${ledgerNote.warn ? "⚠ " : "• "}${ledgerNote.text}`, ledgerNote.warn ? style.warning : style.faint))
   const textColor = live ? style.muted : style.body
   // Markdown headings (the conclusion's sections) show as bold lines, not "## …".
   const blocks = textBlocks(body)
@@ -392,10 +394,25 @@ export default Plugin.define({
         if (!run || (!run.messages.length && !run.partial)) {
           insert(box, line("discuss.empty", "No replies yet. Start with /discuss-start <topic>.", style.faint))
         }
+        const ledger = run ? ledgerOf(run.messages) : { claims: [], replies: [] }
+        const ledgerByIndex = new Map(ledger.replies.map((reply) => [reply.index, reply]))
         run?.messages.forEach((message, index) => {
           const conclusion = message.kind === "conclusion"
           const color = conclusion ? style.success : style[speakerRole(message.speaker)]
-          insert(box, bubble(`discuss.msg.${index}`, sideHeader(message.speaker, message.label, message.round, message.seconds, false, conclusion), message.text, color, style, false, answerNote(message.check)))
+          const replyLedger = ledgerByIndex.get(index)
+          insert(
+            box,
+            bubble(
+              `discuss.msg.${index}`,
+              sideHeader(message.speaker, message.label, message.round, message.seconds, false, conclusion),
+              message.text,
+              color,
+              style,
+              false,
+              answerNote(message.check),
+              replyLedger ? replyLedgerNote(replyLedger) : null,
+            ),
+          )
         })
         if (run?.partial) {
           const conclusion = run.partial.kind === "conclusion"
@@ -404,6 +421,20 @@ export default Plugin.define({
         }
 
         const footer: Array<unknown> = []
+        if (ledger.claims.length) {
+          footer.push(line("discuss.claims.title", "Claims", style.title, true))
+          ledger.claims.forEach((claim) => {
+            const tone = claim.status === "open" ? style.warning : claim.status === "accepted" ? style.success : style.muted
+            footer.push(
+              row(`discuss.claim.${claim.id}`, [
+                [`${claim.id} `, style[claim.side], true],
+                [`${statusText(claim.status)} · `, tone],
+                [claim.text, style.body],
+              ]),
+            )
+          })
+          footer.push(line("discuss.claims.gap", " "))
+        }
         if (run?.usage?.requests) {
           const planned = callBound(run.settings).participantCalls
           const over = run.usage.requests > planned

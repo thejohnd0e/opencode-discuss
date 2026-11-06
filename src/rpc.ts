@@ -41,6 +41,17 @@ const message = object(
     seconds: { type: "number" },
     kind: { type: "string", enum: ["conclusion"] },
     check: object({ quoted: { type: "number" }, matched: { type: "number" } }, ["quoted", "matched"]),
+    ledger: object(
+      {
+        claims: { type: "array", items: object({ id: { type: "string" }, text: { type: "string" } }, ["id", "text"]) },
+        answers: {
+          type: "array",
+          items: object({ id: { type: "string" }, verdict: { type: "string", enum: ["rebutted", "accepted"] } }, ["id", "verdict"]),
+        },
+        parsed: { type: "boolean" },
+      },
+      ["claims", "answers", "parsed"],
+    ),
   },
   ["speaker", "label", "round", "text"],
 )

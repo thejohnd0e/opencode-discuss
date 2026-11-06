@@ -1,4 +1,5 @@
 import type { AnswerCheck } from "./answer"
+import type { LedgerRecord } from "./ledger"
 
 export type Status = "idle" | "running" | "completed" | "cancelled" | "failed"
 export type Mode = "cooperative" | "critical" | "debate"
@@ -35,6 +36,8 @@ export type Message = {
   kind?: "conclusion"
   /** Debate replies: quotes of the opponent's last reply, and how many were really there. */
   check?: AnswerCheck
+  /** Debate replies: new claims and verdicts on the opponent's open claims. */
+  ledger?: LedgerRecord
 }
 
 export type PartialMessage = {

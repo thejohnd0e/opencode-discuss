@@ -339,7 +339,81 @@ class AnswerCheckTest(unittest.TestCase):
                          {"quoted": 2, "matched": 1})
 
 
+class LedgerTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.runner = load_runner_module()
+
+    def test_claims_get_runner_numbers_and_the_block_is_cut_from_the_text(self):
+        ledger = self.runner.Ledger()
+        shown, record = ledger.apply("A", "Opening.\n\n[ledger]\n+ A1: one\n+ A7: two\n[/ledger]", 1)
+        self.assertEqual(shown, "Opening.")
+        self.assertEqual(record, {"claims": [{"id": "A1", "text": "one"}, {"id": "A2", "text": "two"}],
+                                  "answers": [], "parsed": True})
+
+    def test_verdicts_close_only_open_claims_of_the_opponent(self):
+        ledger = self.runner.Ledger()
+        ledger.apply("A", "x\n[ledger]\n+ A1: one\n+ A2: two\n[/ledger]", 1)
+        shown, record = ledger.apply(
+            "B", "Reply.\n```\n[ledger]\n+ **B1**: tests first\n**A2**: accepted\n- A1 — Rebutted\nA9: accepted\n"
+                 "B1: accepted\n[/ledger]\n```", 1)
+        self.assertEqual(shown, "Reply.")
+        self.assertEqual(record["answers"], [{"id": "A2", "verdict": "accepted"}, {"id": "A1", "verdict": "rebutted"}])
+        self.assertEqual([c["status"] for c in ledger.open_claims("B")], ["open"])
+        self.assertEqual(ledger.open_claims("A"), [])
+        # a closed claim cannot be closed again
+        _shown, again = ledger.apply("B", "y\n[ledger]\nA1: accepted\n[/ledger]", 2)
+        self.assertEqual(again["answers"], [])
+
+    def test_a_reply_without_a_block_is_kept_and_marked(self):
+        ledger = self.runner.Ledger()
+        self.assertEqual(ledger.apply("A", "Plain reply.", 1), ("Plain reply.", {"claims": [], "answers": [], "parsed": False}))
+
+    def test_the_rule_lists_the_opponents_open_claims_and_the_next_number(self):
+        ledger = self.runner.Ledger()
+        ledger.apply("A", "x\n[ledger]\n+ A1: hidden rules get lost\n[/ledger]", 1)
+        rule = ledger.rule("B", "A")
+        self.assertIn("B1, B2", rule)
+        self.assertIn("A1: hidden rules get lost", rule)
+        self.assertIn("Открытых тезисов оппонента сейчас нет", ledger.rule("A", "B"))
+
+    def test_summary_names_the_state_of_every_claim(self):
+        ledger = self.runner.Ledger()
+        ledger.apply("A", "x\n[ledger]\n+ A1: one\n+ A2: two\n[/ledger]", 1)
+        ledger.apply("B", "y\n[ledger]\nA1: rebutted\n[/ledger]", 1)
+        self.assertEqual(ledger.summary({"A": "Left", "B": "Right"}),
+                         ["A1 (Left, опровергнут оппонентом): one", "A2 (Left, оппонент не ответил): two"])
+
+
 class DebateAnswerProtocolTest(unittest.TestCase):
+    def test_a_debate_keeps_a_claim_ledger_and_the_conclusion_sees_it(self):
+        host = Host("--debate", "--conclusion", "a", rounds=1)
+        self.addCleanup(host.close)
+        host.wait_for("started")
+        first = host.wait_for("generate")
+        self.assertIn("[ledger]", first["messages"][0]["content"])
+        host.reply(first, "Refactor wins.\n[ledger]\n+ A1: refactor is safer\n[/ledger]")
+        message = host.wait_for("message")
+        self.assertEqual(message["text"], "Refactor wins.")
+        self.assertEqual(message["ledger"]["claims"], [{"id": "A1", "text": "refactor is safer"}])
+
+        second = host.wait_for("generate")
+        self.assertIn("A1: refactor is safer", second["messages"][0]["content"])
+        self.assertNotIn("[ledger]", json.dumps(second["messages"][1:], ensure_ascii=False))
+        host.reply(second, "> Refactor wins\nNot always.\n[ledger]\n+ B1: tests come first\nA1: rebutted\n[/ledger]")
+        message = host.wait_for("message")
+        self.assertEqual(message["ledger"]["answers"], [{"id": "A1", "verdict": "rebutted"}])
+
+        conclusion = host.wait_for("generate")
+        prompt = conclusion["messages"][1]["content"]
+        self.assertIn("A1", prompt)
+        self.assertIn("опровергнут оппонентом", prompt)
+        self.assertIn("B1", prompt)
+        self.assertIn("оппонент не ответил", prompt)
+        host.reply(conclusion, "Agreed: none.")
+        host.wait_for("done")
+        host.finish()
+
     def test_debate_turns_after_the_first_must_quote_and_are_checked(self):
         host = Host("--debate", rounds=1)
         self.addCleanup(host.close)

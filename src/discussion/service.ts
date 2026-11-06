@@ -3,6 +3,7 @@ import { DiscussionStore } from "./store"
 import type { PreflightFailure } from "./preflight"
 import type { StepUsage } from "./usage"
 import { validAnswerCheck } from "./answer"
+import { cleanLedger, validLedger } from "./ledger"
 import { dialogueReplies, hasConclusion, isDialogueReply, modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
 
 export type ServiceEvent = {
@@ -263,6 +264,7 @@ export class DiscussionService {
           ...(event.seconds === undefined ? {} : { seconds: event.seconds }),
           ...(event.conclusion ? { kind: "conclusion" as const } : {}),
           ...(validAnswerCheck(event.check) ? { check: { quoted: event.check.quoted, matched: event.check.matched } } : {}),
+          ...(validLedger(event.ledger) ? { ledger: cleanLedger(event.ledger) } : {}),
         })
         this.#emit(sessionID, runID, "message", {
           speaker,

@@ -1,5 +1,6 @@
 import { addUsage, type StepUsage } from "./usage"
 import { validAnswerCheck } from "./answer"
+import { cleanLedger, validLedger } from "./ledger"
 import { randomUUID } from "node:crypto"
 import {
   MAX_OUTPUT_TOKENS,
@@ -86,6 +87,8 @@ function message(value: unknown, where: string): Message {
   if (kind !== undefined && kind !== "conclusion") fail(`${where}.kind is invalid`)
   const check = value.check
   if (check !== undefined && !validAnswerCheck(check)) fail(`${where}.check is invalid`)
+  const ledger = value.ledger
+  if (ledger !== undefined && !validLedger(ledger)) fail(`${where}.ledger is invalid`)
   return {
     speaker: speaker as Message["speaker"],
     label,
@@ -94,6 +97,7 @@ function message(value: unknown, where: string): Message {
     ...(seconds === undefined ? {} : { seconds }),
     ...(kind === undefined ? {} : { kind }),
     ...(check === undefined ? {} : { check: { quoted: check.quoted, matched: check.matched } }),
+    ...(ledger === undefined ? {} : { ledger: cleanLedger(ledger) }),
   }
 }
 

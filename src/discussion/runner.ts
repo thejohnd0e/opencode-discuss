@@ -15,6 +15,7 @@ export type RunnerEvent =
       seconds?: number
       conclusion?: boolean
       check?: { quoted: number; matched: number }
+      ledger?: unknown
     }
   | { type: "delta"; speaker: string; round: number; text: string; conclusion?: boolean }
   | { type: "control"; command: string; text?: string }

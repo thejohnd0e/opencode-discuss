@@ -71,7 +71,7 @@ describe("Discuss RPC contract", () => {
       status: "completed",
       createdAt: 1,
       finishedAt: 2,
-      messages: [{ speaker: "a", label: "p/a", round: 1, text: "x", seconds: 1, kind: "conclusion", check: { quoted: 1, matched: 1 } }],
+      messages: [{ speaker: "a", label: "p/a", round: 1, text: "x", seconds: 1, kind: "conclusion", check: { quoted: 1, matched: 1 }, ledger: { claims: [{ id: "A1", text: "c" }], answers: [{ id: "B1", verdict: "accepted" }], parsed: true } }],
       partial: { speaker: "b", label: "p/b", round: 1, text: "y", kind: "conclusion" },
       transcript: "path",
       error: "e",

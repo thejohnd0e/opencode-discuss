@@ -1,11 +1,25 @@
 import { describeUsage, ORCHESTRATOR_NOTE } from "./usage"
 import { answerNote } from "./answer"
+import { ledgerOf, statusText } from "./ledger"
 import { dialogueReplies, isDialogueReply, modelLabel, type Run } from "./types"
 
 const clip = (text: string, limit = 4000) =>
   text.length <= limit ? text : text.slice(0, limit).replace(/\s+\S*$/, "") + " …"
 
 const oneLine = (text: string) => text.replace(/\s*\n\s*/g, " ").trim()
+
+/** The debate's claims and what became of each, labelled with its author's model. */
+function ledgerSection(run: Run): string[] {
+  const { claims } = ledgerOf(run.messages)
+  if (!claims.length) return []
+  const owner = (side: "a" | "b") => modelLabel(side === "a" ? run.settings.a : run.settings.b)
+  return [
+    "",
+    "## Claims ledger",
+    "",
+    ...claims.map((claim) => `- ${claim.id} (${owner(claim.side)}): ${clip(claim.text, 300)} — ${statusText(claim.status)}`),
+  ]
+}
 
 /**
  * Builds a reviewable handoff packet. It reports what each participant actually
@@ -58,6 +72,7 @@ export function buildHandoff(run: Run): string {
           clip(conclusion.text, 6000),
         ]
       : []),
+    ...ledgerSection(run),
     "",
     "## Latest positions",
     ...positions,

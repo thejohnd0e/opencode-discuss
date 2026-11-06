@@ -228,8 +228,11 @@ This keeps a debate from turning into two parallel monologues.
 
 The quotes are checked against the opponent's own words (quote marks, case and a
 slipped word do not matter; a paraphrase or an invented quote does not count).
-Lines the opponent itself quoted do not count either: quoting your own earlier
-words back from the opponent's reply is flagged as such, not as an answer.
+Your own earlier words do not count either, wherever the opponent repeated them
+(in a quote line or inside a sentence): a quote that is mostly your own words is
+flagged "quotes its own words back". Only runs of four or more words count as
+borrowed, so a few shared words never make a quote suspicious; a quote that
+borrows a substantial part but not most of it still counts, with a warning.
 The panel shows "✓ Answers 2 points of the opponent", or a warning when a reply
 quoted nothing or quoted something the opponent never said; the handoff flags
 such replies too. No extra request is made for this.

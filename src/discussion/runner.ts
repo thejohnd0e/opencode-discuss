@@ -14,7 +14,7 @@ export type RunnerEvent =
       text: string
       seconds?: number
       conclusion?: boolean
-      check?: { quoted: number; matched: number; recycled?: number }
+      check?: { quoted: number; matched: number; recycled?: number; mixed?: number }
       ledger?: unknown
     }
   | { type: "delta"; speaker: string; round: number; text: string; conclusion?: boolean }

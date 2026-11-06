@@ -565,6 +565,8 @@ went unanswered.
 
 - [x] Quote laundering closed (2026-11-07, found by a reviewer in run `3860835f`): A's round-2 quotes were its own round-1 sentences that B had quoted, and the check counted them as answers (2/2). Now only the opponent's own text (without its `>` lines) counts; a quote found only among the opponent's quotes is `recycled` and the panel says "quotes its own words back, not the opponent's". Replaying that run: A round 2 is now 0 matched, 2 recycled; the other four replies are unchanged at 2/2. Regression tests in Python and TS; 32 Python, 207 unit.
 
+- [x] Recycled quotes, second pass (2026-11-07, reviewer's follow-up): the replier's own earlier replies are now part of the check. Share of a quote's words in runs of 4+ words also found in the replier's own earlier text (their `>` lines excluded): 60% or more is `recycled` (not an answer), 30–60% still counts but is `mixed` and warned about, below that is clean. This catches the replier's phrase repeated inside the opponent's sentence, nested `>>` quotes and "old phrase + a few new words", while a quote sharing a few words stays clean. Five regression tests. Replayed on all 7 saved debates (22 checked replies): no false flag; the only new verdict is the known case (run `3860835f`, A round 2: 0 matched, 2 recycled). 37 Python, 208 unit.
+
 ### 15b: Claim ledger — done, verified live 2026-11-07
 
 - [x] Each reply ends with a short list of its own numbered claims (A1, A2, B1…);

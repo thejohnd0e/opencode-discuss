@@ -3,8 +3,10 @@ export type AnswerCheck = {
   quoted: number
   /** Quotes found in the opponent's own words. */
   matched: number
-  /** Quotes of the replier's own earlier words, found only in what the opponent had quoted. */
+  /** Quotes that are mostly the replier's own earlier words, wherever the opponent repeated them. */
   recycled?: number
+  /** Counted quotes that still borrow a substantial part of the replier's own earlier words. */
+  mixed?: number
 }
 
 export type AnswerNote = { text: string; warn: boolean }
@@ -28,6 +30,13 @@ export function answerNote(check: AnswerCheck | undefined): AnswerNote | null {
   if (check.matched === 0) {
     return { text: "Quotes not found in the opponent's reply: may not answer their arguments", warn: true }
   }
+  const mixed = check.mixed ?? 0
+  if (mixed > 0) {
+    return {
+      text: `Answers ${points(check.matched)} of the opponent; ${mixed} quote${mixed === 1 ? " largely repeats" : "s largely repeat"} its own earlier words`,
+      warn: true,
+    }
+  }
   if (check.matched < check.quoted) {
     return {
       text: `Answers ${points(check.matched)} of the opponent; ${check.quoted - check.matched} quote${check.quoted - check.matched === 1 ? "" : "s"} not found in their reply`,
@@ -39,8 +48,10 @@ export function answerNote(check: AnswerCheck | undefined): AnswerNote | null {
 
 export function validAnswerCheck(value: unknown): value is AnswerCheck {
   if (!value || typeof value !== "object") return false
-  const { quoted, matched, recycled } = value as { quoted?: unknown; matched?: unknown; recycled?: unknown }
+  const { quoted, matched, recycled, mixed } = value as { quoted?: unknown; matched?: unknown; recycled?: unknown; mixed?: unknown }
   const extra = recycled === undefined ? 0 : recycled
+  const partly = mixed === undefined ? 0 : mixed
+  if (typeof partly !== "number" || !Number.isInteger(partly) || partly < 0 || (typeof matched === "number" && partly > matched)) return false
   return (
     typeof quoted === "number" &&
     typeof matched === "number" &&
@@ -57,5 +68,10 @@ export function validAnswerCheck(value: unknown): value is AnswerCheck {
 
 /** Copy with only the known fields, for storage. */
 export function cleanAnswerCheck(check: AnswerCheck): AnswerCheck {
-  return { quoted: check.quoted, matched: check.matched, ...(check.recycled ? { recycled: check.recycled } : {}) }
+  return {
+    quoted: check.quoted,
+    matched: check.matched,
+    ...(check.recycled ? { recycled: check.recycled } : {}),
+    ...(check.mixed ? { mixed: check.mixed } : {}),
+  }
 }

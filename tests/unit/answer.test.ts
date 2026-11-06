@@ -43,6 +43,15 @@ describe("answer note", () => {
     expect(validAnswerCheck({ quoted: 2, matched: 2, recycled: 1 })).toBe(false)
   })
 
+  test("a counted quote that largely repeats one's own words is a warning but still counts", () => {
+    expect(answerNote({ quoted: 2, matched: 2, mixed: 1 })).toEqual({
+      text: "Answers 2 points of the opponent; 1 quote largely repeats its own earlier words",
+      warn: true,
+    })
+    expect(validAnswerCheck({ quoted: 2, matched: 2, mixed: 1 })).toBe(true)
+    expect(validAnswerCheck({ quoted: 2, matched: 1, mixed: 2 })).toBe(false)
+  })
+
   test("all quotes real is a quiet confirmation", () => {
     expect(answerNote({ quoted: 2, matched: 2 })).toEqual({ text: "Answers 2 points of the opponent", warn: false })
   })

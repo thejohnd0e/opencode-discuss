@@ -362,6 +362,49 @@ class AnswerCheckTest(unittest.TestCase):
         honest = "> «она меняет рамку прочтения»\nПринимаю."
         self.assertEqual(self.runner.check_answer(honest, opponent), {"quoted": 1, "matched": 1, "recycled": 0})
 
+    MY_EARLIER = ("Смех тут не реакция на отмороженный нос, а эффект жанра: частушечная "
+                  "строфа требует развязки, и смех её даёт.")
+
+    def test_nested_quote_of_my_own_words_is_recycled(self):
+        opponent = ("> > «Смех тут не реакция на отмороженный нос, а эффект жанра»\n"
+                    "> Ты так считаешь.\nА я думаю, что жанр не объясняет причину.")
+        reply = "> «Смех тут не реакция на отмороженный нос, а эффект жанра»\nДа."
+        self.assertEqual(self.runner.check_answer(reply, opponent, self.MY_EARLIER),
+                         {"quoted": 1, "matched": 0, "recycled": 1})
+
+    def test_my_phrase_repeated_inside_the_opponents_sentence_is_recycled(self):
+        opponent = ("Ты пишешь, что «смех тут не реакция на отмороженный нос, а эффект жанра», "
+                    "но жанр не отменяет сюжета.")
+        reply = "> «смех тут не реакция на отмороженный нос, а эффект жанра»\nИменно."
+        self.assertEqual(self.runner.check_answer(reply, opponent, self.MY_EARLIER),
+                         {"quoted": 1, "matched": 0, "recycled": 1})
+        # without the history the same quote would have passed: the history is what catches it
+        self.assertEqual(self.runner.check_answer(reply, opponent),
+                         {"quoted": 1, "matched": 1, "recycled": 0})
+
+    def test_my_old_phrase_plus_a_few_new_words_is_recycled(self):
+        opponent = ("Смех тут не реакция на отмороженный нос, а эффект жанра: частушечная строфа "
+                    "требует развязки, но это лишь твоя гипотеза.")
+        reply = ("> Смех тут не реакция на отмороженный нос, а эффект жанра: частушечная строфа "
+                 "требует развязки, но это\nОтвет")
+        self.assertEqual(self.runner.check_answer(reply, opponent, self.MY_EARLIER),
+                         {"quoted": 1, "matched": 0, "recycled": 1})
+
+    def test_half_mine_half_theirs_counts_but_is_marked_mixed(self):
+        opponent = ("Согласен, что это эффект жанра: частушечная строфа требует развязки, однако "
+                    "товарищи смеются над самим вождём, над его внезапной телесной слабостью и ни над чем больше.")
+        reply = ("> эффект жанра: частушечная строфа требует развязки, однако товарищи смеются над самим "
+                 "вождём, над его внезапной телесной слабостью\nОтвет")
+        self.assertEqual(self.runner.check_answer(reply, opponent, self.MY_EARLIER),
+                         {"quoted": 1, "matched": 1, "recycled": 0, "mixed": 1})
+
+    def test_an_honest_quote_sharing_a_few_of_my_words_is_clean(self):
+        opponent = ("Отмороженный нос здесь важен сюжетно: без него нет повода для смеха, "
+                    "и строфа рассыпается.")
+        reply = "> без него нет повода для смеха, и строфа рассыпается\nНе согласен."
+        self.assertEqual(self.runner.check_answer(reply, opponent, self.MY_EARLIER),
+                         {"quoted": 1, "matched": 1, "recycled": 0})
+
     def test_two_quotes_one_real(self):
         self.assertEqual(self.check("> Поэтапный рефакторинг обычно безопаснее\nДа.\n\n"
                                     "> выдуманная цитата которой нет вообще\nНет."),

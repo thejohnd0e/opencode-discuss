@@ -160,23 +160,52 @@ def split_quoted(text):
     return "\n".join(own), "\n".join(quoted)
 
 
-def check_answer(reply, opponent):
+# Only runs of this many words count as borrowed, so two or three shared
+# words never make a quote suspicious.
+BORROW_RUN = 4
+RECYCLED_SHARE = 0.6
+MIXED_SHARE = 0.3
+
+
+def borrowed_share(quote, source_words):
+    """Share of the quote's words that sit in long runs also present in `source_words`."""
+    words = normalize(" ".join(ELLIPSIS.split(quote))).split()
+    if not words or not source_words:
+        return 0.0
+    matcher = difflib.SequenceMatcher(None, words, source_words, autojunk=False)
+    covered = sum(block.size for block in matcher.get_matching_blocks() if block.size >= BORROW_RUN)
+    return covered / len(words)
+
+
+def check_answer(reply, opponent, own_history=""):
     """How many quotes the reply has, and how many are in the opponent's own words.
 
-    Only the opponent's own text counts. A quote found only among the
-    opponent's `>` lines is the replier's own earlier words that the opponent
-    had quoted: quoting them back is not an answer (live 2026-11-07, run
-    3860835f, found by a reviewer). Those are counted as `recycled`.
+    Only the opponent's own text counts as something to answer. A quote that is
+    mostly the replier's own earlier words is `recycled`, wherever the opponent
+    had repeated them: in a `>` line (live 2026-11-07, run 3860835f, found by a
+    reviewer) or inside their own sentence. A quote that borrows a substantial
+    part of the replier's words but not most of it still counts, and is marked
+    `mixed` so the panel can warn: a doubtful quote is flagged rather than a
+    real answer being rejected.
     """
     own, quoted = split_quoted(opponent)
-    matched = recycled = 0
+    own_words = normalize(split_quoted(own_history)[0]).split() if own_history else []
+    matched = recycled = mixed = 0
     quotes = extract_quotes(reply)
     for quote in quotes:
-        if quote_found(quote, own):
+        share = borrowed_share(quote, own_words)
+        if share >= RECYCLED_SHARE:
+            recycled += 1
+        elif quote_found(quote, own):
             matched += 1
+            if share >= MIXED_SHARE:
+                mixed += 1
         elif quoted and quote_found(quote, quoted):
             recycled += 1
-    return {"quoted": len(quotes), "matched": matched, "recycled": recycled}
+    result = {"quoted": len(quotes), "matched": matched, "recycled": recycled}
+    if mixed:
+        result["mixed"] = mixed
+    return result
 
 
 # Claim ledger (Task 15b): in a debate every reply ends with a service block
@@ -567,7 +596,9 @@ def main():
         dialogue.history.append({"speaker": side["name"], "text": text,
                                  "seconds": round(time.time() - started, 1)})
         if answer_rule:
-            extra["check"] = check_answer(text, opponent_last["text"])
+            own_history = "\n\n".join(turn["text"] for turn in dialogue.history[:-1]
+                                        if turn["speaker"] == side["name"])
+            extra["check"] = check_answer(text, opponent_last["text"], own_history)
         emit(type="message", speaker=side["name"], round=turn_index // 2 + 1,
              text=text, seconds=round(time.time() - started, 1), **extra)
 

@@ -501,6 +501,38 @@ Do these after Task 11, highest priority first, and reorder them if live finding
   - From here on, each task is a separate commit.
 - [x] Keep `STATUS.md`, `TODO.md` and the ledger updated after each task (rule recorded in `AGENTS.md`).
 
+## Task 14: Joint conclusion and reply language (requested 2026-11-07)
+
+Goal: after the last round one participant writes a joint conclusion that the
+handoff puts first, for example when the two models discuss a project plan.
+Replies follow the language of the topic, without a separate setting.
+
+- [ ] **Setting** `conclusion=none|a|b` (`/discuss-settings conclusion=a`). It is
+  optional in stored state, absent means `none`, so earlier runs and the current
+  default stay as they are.
+- [ ] **Python:** after the rounds, unless the run was stopped, the chosen side
+  gets one more request with a conclusion prompt: the whole dialogue
+  (interjections included) and a fixed shape: what both agree on, where they
+  still disagree, recommended next steps. It must name disagreements and must
+  not invent consensus. The reply is a `message` with `conclusion: true`.
+- [ ] **Language:** the system context of every turn and of the conclusion says
+  to answer in the language of the topic (the built-in prompt is Russian, so an
+  English topic otherwise got Russian replies, live 2026-11-06).
+- [ ] **Accounting:** the ceiling is `rounds × 2 + 1` calls with a conclusion
+  (`callBound`), in the start dialog, toasts, panel and preflight text. The
+  `n/m replies` counter counts dialogue replies only; the conclusion is
+  expected for `completed`.
+- [ ] **Panel:** the conclusion is a separate block, "Conclusion · written by A".
+- [ ] **Handoff:** `## Conclusion (written by <model>)` comes before the latest
+  positions, with a note that one participant wrote it.
+- [ ] **RPC schema:** `settings.conclusion` and `message.kind` listed (the host
+  drops unlisted fields).
+- [ ] Tests: settings arguments, store validation, schema, bound, handoff,
+  Python conclusion request and language line. Then one live run (about two
+  replies plus one conclusion, budget stated before the run).
+- [ ] Later, not in this task: a second side reviewing the conclusion
+  ("what is distorted?"), and a structured "project plan" mode.
+
 ## Phase 2 delivery checkpoints
 
 1. **Blockers fixed:** Task 9, offline green, no configuration touched. — done 2026-11-06

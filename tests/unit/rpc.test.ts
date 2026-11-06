@@ -67,7 +67,7 @@ describe("Discuss RPC contract", () => {
     const run: Required<Run> = {
       runID: "r",
       topic: "t",
-      settings: { a: { providerID: "p", modelID: "a", variant: "low" }, b: { providerID: "p", modelID: "b" }, mode: "cooperative", rounds: 1, maxOutputTokens: 100, conclusion: "a" },
+      settings: { a: { providerID: "p", modelID: "a", variant: "low" }, b: { providerID: "p", modelID: "b" }, mode: "cooperative", rounds: 1, maxOutputTokens: 100, conclusion: "a", review: true },
       status: "completed",
       createdAt: 1,
       finishedAt: 2,

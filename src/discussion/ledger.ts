@@ -13,7 +13,17 @@ export type LedgerRecord = {
 }
 
 export type ClaimStatus = "open" | Verdict
-export type Claim = { id: string; side: "a" | "b"; text: string; status: ClaimStatus; round: number }
+/** Why an open claim is open: the opponent had a later reply and skipped it, or no reply was left. */
+export type OpenReason = "skipped" | "ended"
+export type Claim = {
+  id: string
+  side: "a" | "b"
+  text: string
+  status: ClaimStatus
+  round: number
+  /** Set on open claims once the messages are read. */
+  open?: OpenReason
+}
 
 type MessageLike = { speaker: string; round: number; kind?: string; ledger?: LedgerRecord }
 
@@ -64,6 +74,7 @@ export type ReplyLedger = {
 
 export function ledgerOf(messages: readonly MessageLike[]): { claims: Claim[]; replies: ReplyLedger[] } {
   const claims = new Map<string, Claim>()
+  const madeAt = new Map<string, number>()
   const replies: ReplyLedger[] = []
   messages.forEach((message, index) => {
     if (!message.ledger || message.kind === "conclusion") return
@@ -82,6 +93,7 @@ export function ledgerOf(messages: readonly MessageLike[]): { claims: Claim[]; r
     for (const claim of message.ledger.claims) {
       if (claims.has(claim.id) || sideOf(claim.id) !== message.speaker) continue
       claims.set(claim.id, { id: claim.id, side: message.speaker, text: claim.text, status: "open", round: message.round })
+      madeAt.set(claim.id, index)
       added.push(claim.id)
     }
     const answeredIds = new Set(answered.map((entry) => entry.id))
@@ -93,6 +105,16 @@ export function ledgerOf(messages: readonly MessageLike[]): { claims: Claim[]; r
       parsed: message.ledger.parsed,
     })
   })
+  // A claim left open is "skipped" when the opponent replied after it was
+  // made, and "ended" when no reply of the opponent came after it.
+  const repliedAfter = (side: "a" | "b", index: number) =>
+    messages.some(
+      (message, at) => at > index && message.speaker === side && message.kind !== "conclusion" && message.kind !== "review",
+    )
+  for (const claim of claims.values()) {
+    if (claim.status !== "open") continue
+    claim.open = repliedAfter(claim.side === "a" ? "b" : "a", madeAt.get(claim.id) ?? 0) ? "skipped" : "ended"
+  }
   return { claims: [...claims.values()], replies }
 }
 
@@ -109,6 +131,8 @@ export function replyLedgerNote(reply: ReplyLedger): LedgerNote {
   return { text: text[0].toUpperCase() + text.slice(1), warn: reply.leftOpen.length > 0 }
 }
 
-export function statusText(status: ClaimStatus): string {
-  return status === "open" ? "never answered" : status === "rebutted" ? "rebutted by the opponent" : "accepted by the opponent"
+export function statusText(claim: Pick<Claim, "status" | "open">): string {
+  if (claim.status === "rebutted") return "rebutted by the opponent"
+  if (claim.status === "accepted") return "accepted by the opponent"
+  return claim.open === "ended" ? "left open: the debate ended" : "skipped by the opponent"
 }

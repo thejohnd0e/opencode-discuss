@@ -1,8 +1,9 @@
 import { callBound, CONCLUSIONS, MAX_OUTPUT_TOKENS, MAX_ROUNDS, MIN_OUTPUT_TOKENS, MODES, type Conclusion, type Mode, type Settings } from "../discussion/types"
 
-export const SETTINGS_USAGE = `Usage: /discuss-settings rounds=1..${MAX_ROUNDS} tokens=${MIN_OUTPUT_TOKENS}..${MAX_OUTPUT_TOKENS} mode=${MODES.join("|")} conclusion=${CONCLUSIONS.join("|")}`
+export const SETTINGS_USAGE = `Usage: /discuss-settings rounds=1..${MAX_ROUNDS} tokens=${MIN_OUTPUT_TOKENS}..${MAX_OUTPUT_TOKENS} mode=${MODES.join("|")} conclusion=${CONCLUSIONS.join("|")} review=on|off`
 
-const KEYS: Record<string, "rounds" | "maxOutputTokens" | "mode" | "conclusion"> = {
+const KEYS: Record<string, "rounds" | "maxOutputTokens" | "mode" | "conclusion" | "review"> = {
+  review: "review",
   conclusion: "conclusion",
   summary: "conclusion",
   rounds: "rounds",
@@ -37,12 +38,24 @@ export function applySettingsArgs(args: string[], current: Settings): SettingsCh
     if (seen.has(key)) return { ok: false, reason: `“${match[1]}” is given twice` }
     seen.add(key)
     const value = match[2].trim()
+    if (key === "review") {
+      const raw = value.toLowerCase()
+      const on = ["on", "yes", "true", "1"].includes(raw)
+      const off = ["off", "no", "false", "0", "none"].includes(raw)
+      if (!on && !off) return { ok: false, reason: "review must be on or off" }
+      if (on) next.review = true
+      else delete next.review
+      changed.push(on ? "review on" : "review off")
+      continue
+    }
     if (key === "conclusion") {
       const raw = value.toLowerCase()
       const choice = (raw === "off" || raw === "no" ? "none" : raw) as Conclusion
       if (!CONCLUSIONS.includes(choice)) return { ok: false, reason: `conclusion must be one of ${CONCLUSIONS.join(", ")}` }
-      if (choice === "none") delete next.conclusion
-      else next.conclusion = choice
+      if (choice === "none") {
+        delete next.conclusion
+        delete next.review
+      } else next.conclusion = choice
       changed.push(choice === "none" ? "no conclusion" : `conclusion by ${choice.toUpperCase()}`)
       continue
     }
@@ -67,13 +80,16 @@ export function applySettingsArgs(args: string[], current: Settings): SettingsCh
       changed.push(`max output ${number}`)
     }
   }
+  if (next.review && next.conclusion !== "a" && next.conclusion !== "b") {
+    return { ok: false, reason: "review needs a conclusion: add conclusion=a or conclusion=b" }
+  }
   return { ok: true, settings: next, changed }
 }
 
 export function conclusionText(settings: Settings): string {
-  return settings.conclusion === "a" || settings.conclusion === "b"
-    ? `conclusion by ${settings.conclusion.toUpperCase()}`
-    : "no conclusion"
+  if (settings.conclusion !== "a" && settings.conclusion !== "b") return "no conclusion"
+  const reviewer = settings.conclusion === "a" ? "B" : "A"
+  return `conclusion by ${settings.conclusion.toUpperCase()}${settings.review ? `, reviewed by ${reviewer}` : ""}`
 }
 
 export function describeSettings(settings: Settings): string {

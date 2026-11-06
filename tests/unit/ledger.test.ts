@@ -85,8 +85,23 @@ describe("ledger notes", () => {
   })
 
   test("status wording", () => {
-    expect(statusText("open")).toBe("never answered")
-    expect(statusText("rebutted")).toBe("rebutted by the opponent")
+    expect(statusText({ status: "open", open: "skipped" })).toBe("skipped by the opponent")
+    expect(statusText({ status: "open", open: "ended" })).toBe("left open: the debate ended")
+    expect(statusText({ status: "rebutted" })).toBe("rebutted by the opponent")
+  })
+
+  test("an open claim is skipped if the opponent replied after it, ended otherwise", () => {
+    const { claims } = ledgerOf([
+      ...messages,
+      { speaker: "b", label: "p/right", round: 3, text: "Last.", ledger: { claims: [{ id: "B2", text: "last word" }], answers: [], parsed: true } },
+      { speaker: "b", label: "p/right", round: 3, text: "Sum.", kind: "conclusion" },
+    ])
+    const byId = Object.fromEntries(claims.map((claim) => [claim.id, claim]))
+    // A2 was made in the first reply; B replied after it twice without closing it
+    expect(byId.A2.open).toBe("skipped")
+    // B2 came in the last dialogue reply: only a conclusion follows, which is not a reply
+    expect(byId.B2.open).toBe("ended")
+    expect(byId.A1.open).toBeUndefined()
   })
 })
 
@@ -121,7 +136,7 @@ describe("ledger in the handoff", () => {
     const packet = buildHandoff(run)
     expect(packet).toContain("## Claims ledger")
     expect(packet).toContain("- A1 (p/left): refactor is safer — rebutted by the opponent")
-    expect(packet).toContain("- A2 (p/left): rewrites lose rules — never answered")
+    expect(packet).toContain("- A2 (p/left): rewrites lose rules — skipped by the opponent")
     expect(packet).toContain("- B1 (p/right): tests come first — accepted by the opponent")
     expect(packet.indexOf("## Claims ledger")).toBeLessThan(packet.indexOf("## Latest positions"))
   })

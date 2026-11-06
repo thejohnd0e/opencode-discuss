@@ -89,9 +89,11 @@ function bubble(id: string, header: Header, body: string, color: unknown, style:
 
 type Header = { who: string; meta: string }
 
-function sideHeader(speaker: string, label: string, round: number, seconds?: number, live = false, conclusion = false): Header {
+function sideHeader(speaker: string, label: string, round: number, seconds?: number, live = false, kind?: string): Header {
   const meta = `${seconds ? ` · ${seconds}s` : ""}${live ? " · writing…" : ""}`
-  if (conclusion) return { who: `Conclusion · written by ${speaker === "a" ? "A" : "B"} · ${label}`, meta }
+  const side = speaker === "a" ? "A" : "B"
+  if (kind === "conclusion") return { who: `Conclusion · written by ${side} · ${label}`, meta }
+  if (kind === "review") return { who: `Review of the conclusion · by ${side} · ${label}`, meta }
   const who =
     speaker === "a" ? `A · ${label}` : speaker === "b" ? `B · ${label}` : speaker === "topic" ? "Topic change" : `You · ${label}`
   return { who: `${who} · round ${round}`, meta }
@@ -397,14 +399,13 @@ export default Plugin.define({
         const ledger = run ? ledgerOf(run.messages) : { claims: [], replies: [] }
         const ledgerByIndex = new Map(ledger.replies.map((reply) => [reply.index, reply]))
         run?.messages.forEach((message, index) => {
-          const conclusion = message.kind === "conclusion"
-          const color = conclusion ? style.success : style[speakerRole(message.speaker)]
+          const color = message.kind === "conclusion" ? style.success : message.kind === "review" ? style.info : style[speakerRole(message.speaker)]
           const replyLedger = ledgerByIndex.get(index)
           insert(
             box,
             bubble(
               `discuss.msg.${index}`,
-              sideHeader(message.speaker, message.label, message.round, message.seconds, false, conclusion),
+              sideHeader(message.speaker, message.label, message.round, message.seconds, false, message.kind),
               message.text,
               color,
               style,
@@ -415,20 +416,21 @@ export default Plugin.define({
           )
         })
         if (run?.partial) {
-          const conclusion = run.partial.kind === "conclusion"
-          const color = conclusion ? style.success : style[speakerRole(run.partial.speaker)]
-          insert(box, bubble("discuss.msg.live", sideHeader(run.partial.speaker, run.partial.label, run.partial.round, undefined, true, conclusion), run.partial.text, color, style, true))
+          const kind = run.partial.kind
+          const color = kind === "conclusion" ? style.success : kind === "review" ? style.info : style[speakerRole(run.partial.speaker)]
+          insert(box, bubble("discuss.msg.live", sideHeader(run.partial.speaker, run.partial.label, run.partial.round, undefined, true, kind), run.partial.text, color, style, true))
         }
 
         const footer: Array<unknown> = []
         if (ledger.claims.length) {
           footer.push(line("discuss.claims.title", "Claims", style.title, true))
           ledger.claims.forEach((claim) => {
-            const tone = claim.status === "open" ? style.warning : claim.status === "accepted" ? style.success : style.muted
+            const tone =
+              claim.status === "accepted" ? style.success : claim.status === "rebutted" ? style.muted : claim.open === "ended" ? style.faint : style.warning
             footer.push(
               row(`discuss.claim.${claim.id}`, [
                 [`${claim.id} `, style[claim.side], true],
-                [`${statusText(claim.status)} · `, tone],
+                [`${statusText(claim)} · `, tone],
                 [claim.text, style.body],
               ]),
             )

@@ -4,7 +4,7 @@ import type { PreflightFailure } from "./preflight"
 import type { StepUsage } from "./usage"
 import { cleanAnswerCheck, validAnswerCheck } from "./answer"
 import { cleanLedger, validLedger } from "./ledger"
-import { dialogueReplies, hasConclusion, isDialogueReply, modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
+import { dialogueReplies, hasConclusion, hasReview, isDialogueReply, modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
 
 export type ServiceEvent = {
   sessionID: string
@@ -120,6 +120,7 @@ export class DiscussionService {
         labels,
         models: { a: spec(settings.a), b: spec(settings.b) },
         ...(hasConclusion(settings) ? { conclusion: settings.conclusion as "a" | "b" } : {}),
+        ...(hasReview(settings) ? { review: true } : {}),
       }
       this.#emit(sessionID, started.runID, "started", { topic: started.topic, settings })
       runner.start(started.topic, options)
@@ -248,7 +249,7 @@ export class DiscussionService {
           label: this.#labelFor(speaker, labels),
           round,
           text: event.text,
-          ...(event.conclusion ? { kind: "conclusion" as const } : {}),
+          ...(event.conclusion ? { kind: "conclusion" as const } : event.review ? { kind: "review" as const } : {}),
         }
         this.#schedulePartial(active, sessionID, runID)
         this.#emit(sessionID, runID, "delta", { speaker, round, text: event.text })
@@ -262,7 +263,7 @@ export class DiscussionService {
           round: event.round,
           text: event.text,
           ...(event.seconds === undefined ? {} : { seconds: event.seconds }),
-          ...(event.conclusion ? { kind: "conclusion" as const } : {}),
+          ...(event.conclusion ? { kind: "conclusion" as const } : event.review ? { kind: "review" as const } : {}),
           ...(validAnswerCheck(event.check) ? { check: cleanAnswerCheck(event.check) } : {}),
           ...(validLedger(event.ledger) ? { ledger: cleanLedger(event.ledger) } : {}),
         })
@@ -270,7 +271,7 @@ export class DiscussionService {
           speaker,
           round: event.round,
           text: event.text,
-          ...(event.conclusion ? { kind: "conclusion" } : {}),
+          ...(event.conclusion ? { kind: "conclusion" } : event.review ? { kind: "review" } : {}),
         })
         return
       }
@@ -352,6 +353,9 @@ export class DiscussionService {
       } else if (hasConclusion(run.settings) && !run.messages.some((message) => message.kind === "conclusion")) {
         status = "failed"
         error = run.error ?? "the discussion finished, but the conclusion was not written"
+      } else if (hasReview(run.settings) && !run.messages.some((message) => message.kind === "review")) {
+        status = "failed"
+        error = run.error ?? "the conclusion was written, but its review was not"
       }
     }
 

@@ -17,7 +17,7 @@ function ledgerSection(run: Run): string[] {
     "",
     "## Claims ledger",
     "",
-    ...claims.map((claim) => `- ${claim.id} (${owner(claim.side)}): ${clip(claim.text, 300)} — ${statusText(claim.status)}`),
+    ...claims.map((claim) => `- ${claim.id} (${owner(claim.side)}): ${clip(claim.text, 300)} — ${statusText(claim)}`),
   ]
 }
 
@@ -29,6 +29,7 @@ export function buildHandoff(run: Run): string {
   const last = (speaker: "a" | "b") =>
     [...run.messages].reverse().find((message) => message.speaker === speaker && isDialogueReply(message))?.text
   const conclusion = [...run.messages].reverse().find((message) => message.kind === "conclusion")
+  const review = [...run.messages].reverse().find((message) => message.kind === "review")
 
   const positions: string[] = []
   const a = last("a")
@@ -70,6 +71,14 @@ export function buildHandoff(run: Run): string {
           "> Written by one participant after the discussion. Check it against the positions below.",
           "",
           clip(conclusion.text, 6000),
+        ]
+      : []),
+    ...(review
+      ? [
+          "",
+          `## Review of the conclusion (by ${review.speaker.toUpperCase()}, ${review.label})`,
+          "",
+          clip(review.text, 3000),
         ]
       : []),
     ...ledgerSection(run),

@@ -115,6 +115,29 @@ describe("conclusion setting", () => {
   })
 })
 
+describe("review setting", () => {
+  test("review=on needs a conclusion, and turning the conclusion off drops it", () => {
+    expect(applySettingsArgs(["review=on"], base).ok).toBe(false)
+    const both = applySettingsArgs(["conclusion=b", "review=on"], base)
+    expect(both.ok && both.settings.review).toBe(true)
+    const off = applySettingsArgs(["conclusion=none"], { ...base, conclusion: "b", review: true })
+    expect(off.ok && "review" in off.settings).toBe(false)
+    expect(applySettingsArgs(["review=maybe"], { ...base, conclusion: "a" }).ok).toBe(false)
+  })
+
+  test("the ceiling and the description count the review", () => {
+    const settings: Settings = { ...base, conclusion: "a", review: true }
+    expect(callBound(settings).participantCalls).toBe(4)
+    expect(describeSettings(settings)).toContain("conclusion by A, reviewed by B · ceiling: 4 calls")
+  })
+
+  test("stored settings keep a review only together with a conclusion", () => {
+    expect(validateSettings({ ...base, conclusion: "a", review: true }).review).toBe(true)
+    expect(validateSettings({ ...base, review: true }).review).toBeUndefined()
+    expect(() => validateSettings({ ...base, conclusion: "a", review: "yes" })).toThrow()
+  })
+})
+
 describe("conclusion in a run", () => {
   test("the runner is told who writes it", async () => {
     const { runner } = await setup({ ...base, conclusion: "b" })
@@ -141,6 +164,28 @@ describe("conclusion in a run", () => {
     // and keeps a valid ledger, drops an invalid one
     expect(run?.messages[0].ledger?.claims).toEqual([{ id: "A1", text: "c" }])
     expect(run?.messages[1].ledger).toBeUndefined()
+  })
+
+  test("with a review: it is stored as such, the runner is told, and a missing review fails the run", async () => {
+    const withReview = await setup({ ...base, conclusion: "a", review: true })
+    expect(withReview.runner.starts[0].review).toBe(true)
+    withReview.runner.emit({ type: "message", speaker: "p/left", round: 1, text: "one" })
+    withReview.runner.emit({ type: "message", speaker: "p/right", round: 1, text: "two" })
+    withReview.runner.emit({ type: "message", speaker: "p/left", round: 1, text: "sum", conclusion: true })
+    withReview.runner.emit({ type: "message", speaker: "p/right", round: 1, text: "No objections.", review: true })
+    withReview.runner.finish({ status: "completed", messages: 4, stopped: false, exitCode: 0 })
+    const done = await settled(withReview.service, withReview.runID)
+    expect(done?.status).toBe("completed")
+    expect(done?.messages.map((message) => message.kind ?? "reply")).toEqual(["reply", "reply", "conclusion", "review"])
+
+    const missing = await setup({ ...base, conclusion: "a", review: true })
+    missing.runner.emit({ type: "message", speaker: "p/left", round: 1, text: "one" })
+    missing.runner.emit({ type: "message", speaker: "p/right", round: 1, text: "two" })
+    missing.runner.emit({ type: "message", speaker: "p/left", round: 1, text: "sum", conclusion: true })
+    missing.runner.finish({ status: "completed", messages: 3, stopped: false, exitCode: 0 })
+    const failed = await settled(missing.service, missing.runID)
+    expect(failed?.status).toBe("failed")
+    expect(failed?.error).toContain("review")
   })
 
   test("a run whose conclusion is missing is failed with a clear reason", async () => {
@@ -191,6 +236,20 @@ describe("conclusion in the handoff", () => {
     expect(packet).toContain("Replies: 2 of 2")
   })
 
+  test("the review follows the conclusion", () => {
+    const packet = buildHandoff({
+      ...run,
+      settings: { ...run.settings, review: true },
+      messages: [...run.messages, { speaker: "a", label: "p/left", round: 1, text: "1. Agreed point 1 was rebutted.", kind: "review" }],
+    })
+    const conclusionAt = packet.indexOf("## Conclusion")
+    const reviewAt = packet.indexOf("## Review of the conclusion (by A, p/left)")
+    expect(reviewAt).toBeGreaterThan(conclusionAt)
+    expect(reviewAt).toBeLessThan(packet.indexOf("## Latest positions"))
+    const positions = packet.slice(packet.indexOf("## Latest positions"), packet.indexOf("## All statements"))
+    expect(positions).not.toContain("Agreed point 1")
+  })
+
   test("a run without a conclusion has no such section", () => {
     expect(buildHandoff({ ...run, messages: run.messages.slice(0, 2) })).not.toContain("## Conclusion")
   })
@@ -222,6 +281,9 @@ describe("runner arguments", () => {
     }
     const withIt = capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" }, conclusion: "b" })
     expect(withIt[withIt.indexOf("--conclusion") + 1]).toBe("b")
+    expect(withIt).not.toContain("--review")
+    expect(capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" }, conclusion: "b", review: true })).toContain("--review")
+    expect(capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" }, review: true })).not.toContain("--review")
     expect(capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" } })).not.toContain("--conclusion")
   })
 })

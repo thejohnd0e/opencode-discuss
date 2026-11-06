@@ -14,10 +14,11 @@ export type RunnerEvent =
       text: string
       seconds?: number
       conclusion?: boolean
+      review?: boolean
       check?: { quoted: number; matched: number; recycled?: number; mixed?: number }
       ledger?: unknown
     }
-  | { type: "delta"; speaker: string; round: number; text: string; conclusion?: boolean }
+  | { type: "delta"; speaker: string; round: number; text: string; conclusion?: boolean; review?: boolean }
   | { type: "control"; command: string; text?: string }
   | { type: "transcript"; path: string; raw?: string }
   | { type: "error"; message: string; round?: number }
@@ -41,6 +42,8 @@ export type RunnerStart = {
   models?: { a: string; b: string }
   /** Side that writes the joint conclusion after the rounds. */
   conclusion?: "a" | "b"
+  /** The other side reviews the conclusion. */
+  review?: boolean
 }
 
 type Child = {
@@ -253,6 +256,7 @@ export function createRunner(options: RunnerOptions): Runner {
       if (startOptions.mode === "debate") command.push("--debate")
       if (startOptions.mode === "critical") command.push("--critical")
       if (startOptions.conclusion) command.push("--conclusion", startOptions.conclusion)
+      if (startOptions.conclusion && startOptions.review) command.push("--review")
 
       const running = spawn(command, {
         cwd: options.cwd,

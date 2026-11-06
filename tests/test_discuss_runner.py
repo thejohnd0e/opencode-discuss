@@ -465,12 +465,34 @@ class LedgerTest(unittest.TestCase):
         self.assertIn("A1: hidden rules get lost", rule)
         self.assertIn("Открытых тезисов оппонента сейчас нет", ledger.rule("A", "B"))
 
-    def test_summary_names_the_state_of_every_claim(self):
+    def test_summary_groups_claims_by_state(self):
         ledger = self.runner.Ledger()
         ledger.apply("A", "x\n[ledger]\n+ A1: one\n+ A2: two\n[/ledger]", 1)
         ledger.apply("B", "y\n[ledger]\nA1: rebutted\n[/ledger]", 1)
-        self.assertEqual(ledger.summary({"A": "Left", "B": "Right"}),
-                         ["A1 (Left, опровергнут оппонентом): one", "A2 (Left, оппонент не ответил): two"])
+        self.assertEqual(ledger.summary({"A": "Left", "B": "Right"}), [
+            "Опровергнут оппонентом:", "- A1 (Left): one",
+            "Оппонент пропустил, хотя у него был ход:", "- A2 (Left): two",
+        ])
+
+    def test_a_claim_made_in_the_last_reply_is_ended_not_skipped(self):
+        # Regression, reviewer 2026-11-07: B3 came in the very last reply and
+        # was listed as an unanswered disagreement.
+        ledger = self.runner.Ledger()
+        ledger.apply("A", "x\n[ledger]\n+ A1: one\n[/ledger]", 1)
+        ledger.apply("B", "y\n[ledger]\n+ B1: two\nA1: accepted\n[/ledger]", 1)
+        ledger.apply("A", "z\n[ledger]\n+ A2: three\n[/ledger]", 2)  # skips B1
+        ledger.apply("B", "w\n[ledger]\n+ B2: four\nA2: rebutted\n[/ledger]", 2)
+        states = {cid: ledger.state(claim) for cid, claim in ledger.claims.items()}
+        self.assertEqual(states, {"A1": "accepted", "B1": "skipped", "A2": "rebutted", "B2": "ended"})
+        summary = ledger.summary({"A": "Left", "B": "Right"})
+        self.assertIn("Остался открытым: спор закончился, ответить было некому:", summary)
+        self.assertEqual(summary[-1], "- B2 (Right): four")
+
+    def test_a_reply_without_a_block_still_counts_as_the_opponents_turn(self):
+        ledger = self.runner.Ledger()
+        ledger.apply("A", "x\n[ledger]\n+ A1: one\n[/ledger]", 1)
+        ledger.apply("B", "no block at all", 1)
+        self.assertEqual(ledger.state(ledger.claims["A1"]), "skipped")
 
 
 class DebateAnswerProtocolTest(unittest.TestCase):
@@ -494,12 +516,59 @@ class DebateAnswerProtocolTest(unittest.TestCase):
 
         conclusion = host.wait_for("generate")
         prompt = conclusion["messages"][1]["content"]
-        self.assertIn("A1", prompt)
-        self.assertIn("опровергнут оппонентом", prompt)
-        self.assertIn("B1", prompt)
-        self.assertIn("оппонент не ответил", prompt)
+        self.assertIn("Опровергнут оппонентом:\n- A1", prompt)
+        # B1 came in the last reply: open because the debate ended, not a disagreement
+        self.assertIn("спор закончился, ответить было некому:\n- B1", prompt)
+        self.assertIn("Осталось открытым к концу спора", conclusion["messages"][0]["content"])
         host.reply(conclusion, "Agreed: none.")
         host.wait_for("done")
+        host.finish()
+
+    def test_the_other_side_reviews_the_conclusion(self):
+        host = Host("--debate", "--conclusion", "a", "--review", rounds=1)
+        self.addCleanup(host.close)
+        started = host.wait_for("started")
+        host.reply(host.wait_for("generate"), "Refactor wins.\n[ledger]\n+ A1: refactor is safer\n[/ledger]")
+        host.reply(host.wait_for("generate"), "> Refactor wins\nNot always.\n[ledger]\nA1: rebutted\n[/ledger]")
+        conclusion = host.wait_for("generate")
+        self.assertEqual(conclusion["side"], "a")
+        host.reply(conclusion, "## Agreed\nNothing.")
+        self.assertTrue(host.wait_for("message").get("conclusion"))
+
+        review = host.wait_for("generate")
+        self.assertEqual(review["side"], "b")
+        system, user = review["messages"][0]["content"], review["messages"][1]["content"]
+        self.assertIn("Возражений нет", system)
+        self.assertIn("## Agreed\nNothing.", user)
+        self.assertIn("Опровергнут оппонентом:\n- A1", user)
+        host.reply(review, "1. A1 is listed as agreed, but it was rebutted.")
+        messages = []
+        while True:
+            event = host.next()
+            if event["type"] == "message":
+                messages.append(event)
+            if event["type"] == "done":
+                break
+        self.assertTrue(messages[-1]["review"])
+        self.assertEqual(messages[-1]["speaker"], started["b"])
+        self.assertEqual(event["messages"], 4)
+        host.finish()
+
+    def test_no_review_without_the_flag_or_when_the_conclusion_failed(self):
+        host = Host("--debate", "--conclusion", "a", "--review", rounds=1)
+        self.addCleanup(host.close)
+        host.wait_for("started")
+        host.reply(host.wait_for("generate"), "a")
+        host.reply(host.wait_for("generate"), "b")
+        conclusion = host.wait_for("generate")
+        host.send(type="generation_error", requestID=conclusion["requestID"], message="boom")
+        events = []
+        while True:
+            event = host.next()
+            events.append(event)
+            if event["type"] == "done":
+                break
+        self.assertFalse([e for e in events if e["type"] == "generate"])
         host.finish()
 
     def test_debate_turns_after_the_first_must_quote_and_are_checked(self):

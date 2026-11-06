@@ -580,7 +580,7 @@ went unanswered.
 - [x] Live re-run 2026-11-07, run `a455d79a`: the ledger now parsed on every reply (B rebutted A1, quotes 2/2), but DeepSeek (`low`) failed rounds 2 and 3 with "output limit of 1500 tokens reached before any visible text" (the longer debate prompt). The runner then kept going: GPT answered the same first reply three times and wrote a conclusion, 9 requests instead of 7, status failed. Fixed: the first failed turn (error, timeout, empty reply) ends the run and no conclusion is written; the start dialog and `/discuss-settings` warn when a debate has fewer than 3000 tokens per reply. 206 unit, 31 Python.
 - [x] Live 2026-11-07, run `3860835f` (debate, 3 rounds, 6000 tokens, conclusion=b): completed, 7 of 7 requests, $0.0047. Every reply's ledger was read; every checked reply quoted the opponent twice, all real; every open claim was answered on the next turn (A1, A2 rebutted; B1, B2, A3, B3, A4 accepted), only the last claim B4 stayed open, as it must. 15b done.
 
-## Task 16: Conclusion built on the ledger, reviewed by the other side (requested 2026-11-07)
+## Task 16: Conclusion built on the ledger, reviewed by the other side — done offline 2026-11-07
 
 Found by a reviewer (run of 2026-11-07, transcript `model-duel-20261107-020138`):
 the conclusion listed B3 under "disagreements" as "left unanswered", but B3 was
@@ -591,27 +591,28 @@ unresolved disagreement are different things.
 
 ### 16a: Claim states the conclusion must respect
 
-- [ ] An open claim is either **skipped** (the opponent had a later reply and did
+- [x] An open claim is either **skipped** (the opponent had a later reply and did
   not answer it) or **left open at the end** (no reply turn was left). The
   runner and the TS ledger both tell them apart.
-- [ ] The conclusion prompt gets the ledger by category and a fixed shape:
+- [x] The conclusion prompt gets the ledger by category and a fixed shape:
   agreed; disagreed (rebutted claims, and claims the opponent skipped); left
   open when the debate ended (explicitly *not* a disagreement); next steps.
-- [ ] Panel Claims list and handoff say "left open: the debate ended" or
+- [x] Panel Claims list and handoff say "left open: the debate ended" or
   "skipped by the opponent" instead of "never answered".
-- [ ] Tests; check the classification on the saved run (B3 must be "ended").
+- [x] Tests; check the classification on the saved run (B3 must be "ended").
 
 ### 16b: Review of the conclusion by the other side
 
-- [ ] Setting `review=on|off` (needs a conclusion; off by default). After the
+- [x] Setting `review=on|off` (needs a conclusion; off by default). After the
   conclusion, the other participant gets one request with the dialogue, the
   ledger by category and the conclusion, and lists distortions: a point in the
   wrong section, an invented agreement, a misattributed position, a claim left
   open at the end shown as a disagreement. "No objections." when there are none.
-- [ ] Stored as a message with `kind: "review"`; panel block "Review · by A";
+- [x] Stored as a message with `kind: "review"`; panel block "Review · by A";
   handoff section after the conclusion; ceiling `+1`; a run with `review=on`
   is `completed` only with the review.
-- [ ] RPC schema, store, tests. Live: one debate with conclusion and review.
+- [x] RPC schema, store, tests (41 Python, 214 unit, smoke ready). The saved run `db45a640` now classifies B3 as "left open: the debate ended" in both the runner and the TS ledger, and A5 (accepted) as the earlier statement the reviewer noticed.
+- [ ] Live: one debate with conclusion and review.
 
 ## Phase 2 delivery checkpoints
 

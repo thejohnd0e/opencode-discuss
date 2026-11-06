@@ -64,6 +64,9 @@ export function validateSettings(value: unknown): Settings {
   }
   const conclusion = value.conclusion
   if (conclusion !== undefined && !CONCLUSIONS.includes(conclusion as Conclusion)) fail("settings.conclusion is invalid")
+  const review = value.review
+  if (review !== undefined && typeof review !== "boolean") fail("settings.review is invalid")
+  const withConclusion = conclusion === "a" || conclusion === "b"
   return {
     a: modelRef(value.a, "settings.a"),
     b: modelRef(value.b, "settings.b"),
@@ -71,6 +74,7 @@ export function validateSettings(value: unknown): Settings {
     rounds,
     maxOutputTokens,
     ...(conclusion === undefined || conclusion === "none" ? {} : { conclusion: conclusion as Conclusion }),
+    ...(withConclusion && review === true ? { review: true } : {}),
   }
 }
 
@@ -84,7 +88,7 @@ function message(value: unknown, where: string): Message {
   const seconds = value.seconds
   if (seconds !== undefined && typeof seconds !== "number") fail(`${where}.seconds is invalid`)
   const kind = value.kind
-  if (kind !== undefined && kind !== "conclusion") fail(`${where}.kind is invalid`)
+  if (kind !== undefined && kind !== "conclusion" && kind !== "review") fail(`${where}.kind is invalid`)
   const check = value.check
   if (check !== undefined && !validAnswerCheck(check)) fail(`${where}.check is invalid`)
   const ledger = value.ledger
@@ -108,13 +112,13 @@ function partial(value: unknown, where: string): PartialMessage | null {
   if (typeof value.label !== "string") fail(`${where}.label is required`)
   if (typeof value.round !== "number" || !Number.isInteger(value.round) || value.round < 1) fail(`${where}.round is invalid`)
   if (typeof value.text !== "string") fail(`${where}.text is required`)
-  if (value.kind !== undefined && value.kind !== "conclusion") fail(`${where}.kind is invalid`)
+  if (value.kind !== undefined && value.kind !== "conclusion" && value.kind !== "review") fail(`${where}.kind is invalid`)
   return {
     speaker: value.speaker as PartialMessage["speaker"],
     label: value.label,
     round: value.round,
     text: value.text,
-    ...(value.kind === "conclusion" ? { kind: "conclusion" as const } : {}),
+    ...(value.kind === "conclusion" || value.kind === "review" ? { kind: value.kind as "conclusion" | "review" } : {}),
   }
 }
 

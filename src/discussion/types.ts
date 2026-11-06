@@ -21,7 +21,11 @@ export type Settings = {
   maxOutputTokens: number
   /** Optional so earlier stored settings stay valid. */
   conclusion?: Conclusion
+  /** With a conclusion: the other side reviews it. */
+  review?: boolean
 }
+
+export type MessageKind = "conclusion" | "review"
 
 export type Speaker = "a" | "b" | "human" | "topic"
 
@@ -32,8 +36,8 @@ export type Message = {
   round: number
   text: string
   seconds?: number
-  /** Set on the joint conclusion written after the rounds. */
-  kind?: "conclusion"
+  /** The joint conclusion written after the rounds, or the other side's review of it. */
+  kind?: MessageKind
   /** Debate replies: quotes of the opponent's last reply, and how many were really there. */
   check?: AnswerCheck
   /** Debate replies: new claims and verdicts on the opponent's open claims. */
@@ -45,7 +49,7 @@ export type PartialMessage = {
   label: string
   round: number
   text: string
-  kind?: "conclusion"
+  kind?: MessageKind
 }
 
 export type Usage = {
@@ -121,6 +125,10 @@ export function hasConclusion(settings: Settings): boolean {
   return settings.conclusion === "a" || settings.conclusion === "b"
 }
 
+export function hasReview(settings: Settings): boolean {
+  return hasConclusion(settings) && settings.review === true
+}
+
 /** Dialogue replies a complete run has: two per round. The conclusion is not one of them. */
 export function dialogueReplies(settings: Settings): number {
   return settings.rounds * 2
@@ -128,11 +136,11 @@ export function dialogueReplies(settings: Settings): number {
 
 /** A participant's reply in the dialogue (not the conclusion, not a human remark). */
 export function isDialogueReply(message: Message): boolean {
-  return (message.speaker === "a" || message.speaker === "b") && message.kind !== "conclusion"
+  return (message.speaker === "a" || message.speaker === "b") && message.kind === undefined
 }
 
 /** Worst-case participant calls and output tokens; input and orchestrator calls are extra. */
 export function callBound(settings: Settings): { participantCalls: number; worstCaseOutputTokens: number } {
-  const participantCalls = dialogueReplies(settings) + (hasConclusion(settings) ? 1 : 0)
+  const participantCalls = dialogueReplies(settings) + (hasConclusion(settings) ? 1 : 0) + (hasReview(settings) ? 1 : 0)
   return { participantCalls, worstCaseOutputTokens: participantCalls * settings.maxOutputTokens }
 }

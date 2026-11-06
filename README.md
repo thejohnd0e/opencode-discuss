@@ -131,6 +131,7 @@ Type `/discuss` in the prompt to list the commands:
 | Change only A / only B | `/discuss-model-a <A>`, `/discuss-model-b <B>` | — |
 | Rounds, output limit, mode | `/discuss-settings rounds=1 tokens=300 mode=critical` | — |
 | Joint conclusion by A or B | `/discuss-settings conclusion=b` (`none` to turn off) | — |
+| The other side reviews it | `/discuss-settings review=on` (needs a conclusion) | — |
 | Stop | `/discuss-stop` | `ctrl+shift+x`* |
 | Interject | `/discuss-interject <text>` | `ctrl+shift+i`* |
 | Change topic | `/discuss-topic <text>` | `ctrl+shift+t`* |
@@ -165,8 +166,8 @@ Selecting models never starts generation; starting a discussion still shows its
 own confirmation.
 
 `/discuss-settings` without arguments shows the current pair and limits. With
-`rounds=1..12`, `tokens=16..32000`, `mode=cooperative|critical|debate` or
-`conclusion=none|a|b` it changes them and keeps the models. Any invalid key refuses the whole change. In
+`rounds=1..12`, `tokens=16..32000`, `mode=cooperative|critical|debate`,
+`conclusion=none|a|b` or `review=on|off` it changes them and keeps the models. Any invalid key refuses the whole change. In
 a session without a pair it first offers the previous pair (or the model
 picker) and then applies the typed values on top.
 
@@ -245,11 +246,13 @@ shown in the reply; instead:
 
 - under each reply: "Answers A1 rebutted · leaves A2 open · new B1", with a
   warning when a claim was left open or the block could not be read;
-- below the discussion, a **Claims** list with the state of every claim: never
-  answered, rebutted or accepted by the opponent;
-- the conclusion is written from the ledger (accepted claims are candidates for
-  *agreed*, rebutted and unanswered ones for *disagreed*), and the handoff gets
-  a "Claims ledger" section.
+- below the discussion, a **Claims** list with the state of every claim:
+  accepted or rebutted by the opponent, **skipped** by the opponent (who had a
+  turn but did not answer it), or **left open: the debate ended** (it came in the
+  last reply, so nobody could answer; this is not a disagreement);
+- the conclusion is written from the ledger, in four sections: agreed,
+  disagreed (rebutted and skipped claims), left open when the debate ended, and
+  next steps; the handoff gets a "Claims ledger" section.
 
 ## Joint conclusion
 
@@ -260,6 +263,14 @@ It is told to name every remaining disagreement and not to invent consensus.
 The panel shows it as a separate green block, "Conclusion · written by B", and
 the handoff puts it before the participants' latest positions, marked as
 written by one side. A stopped run gets no conclusion.
+
+With `review=on` the side that did not write the conclusion gets one more
+request: the dialogue, the claims ledger and the conclusion, and it lists any
+distortion (a point in the wrong section, an agreement that was not there, its
+own position misstated, a claim left open at the end shown as a disagreement),
+or answers "No objections." It does not reopen the debate. The panel shows it as
+"Review of the conclusion · by A", and the handoff puts it right after the
+conclusion. It is one more call; the start dialog counts it.
 
 ## Statuses
 

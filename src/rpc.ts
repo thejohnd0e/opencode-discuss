@@ -65,10 +65,19 @@ const run = object(
     transcript: { type: "string" },
     error: { type: "string" },
     errorKind: { type: "string" },
+    // Every field of `Usage` and `Run` must be listed: the host drops anything
+    // else (live: `handoff`, `usage.requests` and `usage.reasoning` were lost).
     usage: object(
-      { input: { type: "number" }, output: { type: "number" }, cost: { type: "number" } },
+      {
+        input: { type: "number" },
+        output: { type: "number" },
+        reasoning: { type: "number" },
+        cost: { type: "number" },
+        requests: { type: "number" },
+      },
       [],
     ),
+    handoff: object({ target: { type: "string", enum: ["plan", "build"] }, at: { type: "number" } }, ["target", "at"]),
   },
   ["runID", "topic", "settings", "status", "createdAt", "messages", "partial"],
 )

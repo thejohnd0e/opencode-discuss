@@ -540,7 +540,7 @@ Nothing checks it, so over several rounds it can turn into two parallel
 monologues, and neither the panel nor the conclusion can see which arguments
 went unanswered.
 
-### 15a: Quote-and-answer turns, checked — done offline 2026-11-07
+### 15a: Quote-and-answer turns, checked — done, verified live 2026-11-07
 
 - [x] In `debate` mode, every turn after the opponent has spoken starts with one
   or two **verbatim quotes** from the opponent's last reply, each on its own
@@ -557,8 +557,7 @@ went unanswered.
 - [x] `cooperative` and `critical` unchanged; the first reply of a run has
   nothing to answer and is not checked.
 - [x] Tests (193 unit, 20 Python, smoke ready): quote extraction and matching, prompt rule only in debate and only
-  with an opponent reply, schema, panel/handoff text. Pending live: one debate of
-  2 rounds (4 replies, about $0.002).
+  with an opponent reply, schema, panel/handoff text. Live 2026-11-07, run `c8027276` (debate, 2 rounds, 1200 tokens, conclusion=b): completed, 5 of 5 requests, $0.0013. Every checked reply quoted the opponent twice and both quotes were real (2/2, three times); A explicitly changed position on two points; all replies and the conclusion were in English (the new language rule works).
 - [ ] Optional, off by default (costs a call): re-ask once when a reply did not
   answer the opponent.
 

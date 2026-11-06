@@ -539,6 +539,11 @@ export default Plugin.define({
         })) as unknown as { runID: string }
         await refresh(sessionID)
         log("started", { runID: result.runID })
+        // A run with the panel closed looks like nothing happened (live, run 31b91540):
+        // show it, and say so.
+        const current = context.ui.panel.current()
+        if (!current || current.name !== "discuss.panel" || current.sessionID !== sessionID) await openPanel(sessionID)
+        toast("Discussion started. /discuss-stop stops it, /discuss closes the panel.", "success")
       } catch (error) {
         show({ title: "Discuss", message: String((error as Error)?.message ?? error), variant: "error" })
       }

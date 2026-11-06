@@ -43,9 +43,9 @@ export function describeUsage(usage: Usage | undefined): string {
   if (!usage || !has) return "unknown"
   const parts: string[] = []
   if (usage.input !== undefined) parts.push(`in ${count(usage.input)}`)
-  if (usage.output !== undefined) {
-    parts.push(`out ${count(usage.output)}${usage.reasoning ? ` (reasoning ${count(usage.reasoning)})` : ""}`)
-  }
+  // OpenCode reports reasoning separately from output (live: output 214, reasoning 311).
+  if (usage.output !== undefined) parts.push(`out ${count(usage.output)}`)
+  if (usage.reasoning) parts.push(`reasoning ${count(usage.reasoning)}`)
   parts.push(usage.cost && usage.cost > 0 ? `$${usage.cost.toFixed(4)}` : "cost unknown")
   return parts.join(" · ")
 }

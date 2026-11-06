@@ -30,7 +30,7 @@ describe("usage helpers", () => {
     expect(describeUsage(undefined)).toBe("unknown")
     expect(describeUsage({ requests: 2 })).toBe("unknown")
     expect(describeUsage({ input: 1200, output: 300, cost: 0 })).toBe("in 1,200 · out 300 · cost unknown")
-    expect(describeUsage({ input: 1200, output: 300, reasoning: 100, cost: 0.01234 })).toBe("in 1,200 · out 300 (reasoning 100) · $0.0123")
+    expect(describeUsage({ input: 1200, output: 300, reasoning: 100, cost: 0.01234 })).toBe("in 1,200 · out 300 · reasoning 100 · $0.0123")
   })
 })
 

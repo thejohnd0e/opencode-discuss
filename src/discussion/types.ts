@@ -36,7 +36,7 @@ export type PartialMessage = {
 export type Usage = {
   input?: number
   output?: number
-  /** Part of `output` spent on reasoning, when the host reports it. */
+  /** Reasoning tokens, reported by the host separately from `output`. */
   reasoning?: number
   cost?: number
   /** Model requests actually made for the run, including failed ones. */

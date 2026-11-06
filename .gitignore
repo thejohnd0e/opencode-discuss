@@ -1,0 +1,46 @@
+# Local and service files
+AGENTS.md
+CLAUDE.md
+STATUS.md
+DECISIONS.md
+TODO.md
+.superpowers/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and virtual environments
+node_modules/
+.venv/
+venv/
+env/
+ENV/
+
+# Logs and runtime state
+*.log
+logs/
+*.pid
+*.pid.lock
+state/
+*.sqlite
+*.sqlite3
+
+# Caches, test output, and build artifacts
+.cache/
+coverage/
+htmlcov/
+dist/
+build/
+tmp/
+temp/
+__pycache__/
+*.pyc
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

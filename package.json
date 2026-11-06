@@ -1,0 +1,25 @@
+{
+  "name": "opencode-discuss",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Two-model discussion panel for the OpenCode terminal UI",
+  "exports": {
+    ".": "./dist/server.js",
+    "./tui": "./dist/tui.js",
+    "./rpc": "./dist/rpc.js"
+  },
+  "files": ["dist", "scripts", "agents", "README.md"],
+  "scripts": {
+    "build": "bun run build:server && bun run build:rpc && bun run build:tui",
+    "build:server": "bun build src/server.ts --target=bun --format=esm --external=@opencode/plugin --external=@opencode/plugin/rpc --external=@opencode/ai --external=@opencode/ai/effect --outfile=dist/server.js",
+    "build:rpc": "bun build src/rpc.ts --target=bun --format=esm --external=@opencode/plugin --external=@opencode/plugin/rpc --external=@opencode/ai --external=@opencode/ai/effect --outfile=dist/rpc.js",
+    "build:tui": "bun build src/tui.ts --target=bun --format=esm --external=@opencode/plugin/tui --external=@opentui/core --external=@opentui/solid --external=solid-js --outfile=dist/tui.js",
+    "typecheck": "node node_modules/typescript/bin/tsc -p tsconfig.json",
+    "test": "bun test tests/unit",
+    "test:python": "python -m unittest discover -s tests -p \"test_*.py\""
+  },
+  "dependencies": { "@opencode/ai": "2.2.5", "@opencode/plugin": "2.2.5" },
+  "peerDependencies": { "@opentui/core": ">=0.8.0", "@opentui/solid": ">=0.8.0", "solid-js": ">=1.9.12" },
+  "devDependencies": { "@types/bun": "latest", "typescript": "^5.5.0", "@opentui/core": "0.8.0", "@opentui/solid": "0.8.0", "solid-js": "1.9.12" }
+}

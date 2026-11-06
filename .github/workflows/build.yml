@@ -1,0 +1,24 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install
+      - run: bun run typecheck
+      - run: bun run build
+      - run: bun test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s tests -p "test_*.py"
+      - run: python -m py_compile scripts/model-duel.py scripts/discuss-runner.py

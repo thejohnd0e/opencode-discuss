@@ -1,0 +1,6 @@
+{
+  "name": "opencode-discuss-live",
+  "private": true,
+  "type": "module",
+  "exports": { "./tui": "./tui.ts" }
+}

@@ -74,7 +74,8 @@ OpenCode reloads configuration after a save; use `/reload` if needed.
 
 1. Select **Discuss** in the agent selector.
 2. Run `/discuss-models` and pick model A, model B, then confirm the pair.
-3. Send a topic in chat, or run `/discuss-start <topic>`.
+3. Send a topic in chat, or run `/discuss-start <topic>`. Either way the start
+   asks for your confirmation, and the panel opens by itself once it starts.
 4. Watch the panel, stop or interject, then hand the result to Plan or Build
    with an explicit confirmation.
 
@@ -121,14 +122,16 @@ own confirmation.
 
 `/discuss-settings` without arguments shows the current pair and limits. With
 `rounds=1..12`, `tokens=16..32000` or `mode=cooperative|critical|debate` it
-changes them and keeps the models. Any invalid key refuses the whole change.
+changes them and keeps the models. Any invalid key refuses the whole change. In
+a session without a pair it first offers the previous pair (or the model
+picker) and then applies the typed values on top.
 
 Commands typed on the home screen create an empty Discuss session first (no
 message, no model call).
 
-Each session has its own pair. In a session without one, `/discuss-models` and
-`/discuss-start` first offer the pair last used in this project; it is applied
-only if you pick it.
+Each session has its own pair. In a session without one, `/discuss-models`,
+`/discuss-settings` and `/discuss-start` first offer the pair last used in this
+project; it is applied only if you pick it.
 
 If a typed `/discuss-start <topic>` is sent to the chat instead, it was not
 recognised as a command; it usually happens when the line is pasted and sent
@@ -145,13 +148,26 @@ enter the topic in the dialog.
   output is `rounds × 2 × maxOutputTokens`.
 - Input tokens, reasoning tokens, provider pricing and the orchestrating
   conversation are **not** included in that number. There is no reliable total
-  cost cap.
-- The output limit is applied as a request override. A provider may ignore it;
-  usage is not yet captured in bridge mode, so the packet usually shows none.
+  cost cap. Reasoning models can spend a small output limit on reasoning before
+  any visible text; the reply is then cut with a note.
+- The output limit is applied as a request override. A provider may ignore it.
+- After each reply the panel and the handoff show what OpenCode reported for the
+  participants: input, output and reasoning tokens (reasoning is counted
+  separately from output) and the cost, or `unknown` / `cost unknown` when the
+  host reported nothing or the model has no price. The orchestrating chat's own
+  calls are not included.
+- Before a start (and before the confirmation) the saved pair is checked
+  against OpenCode's model list: a missing, disabled or non-chat model, or an
+  output limit above the model's own, is refused with a message.
 - One run per location at a time. Another start returns `busy`; nothing is
   queued.
 - No automatic retries. Restarting OpenCode marks an unfinished run `cancelled`
   with reason `interrupted by restart`.
+- `/discuss-stop` interrupts the current reply and ends the run; a dialogue
+  process that does not exit within 5 seconds is killed together with its
+  children.
+- A result is handed off at most once, even after a restart; start a new
+  discussion to hand off again.
 
 ## Statuses
 
@@ -188,14 +204,20 @@ does not touch your configuration or state.
 The TUI writes a journal to `%LOCALAPPDATA%\opencode-discuss\logs\tui.jsonl`
 (or `$XDG_STATE_HOME/opencode-discuss/logs/tui.jsonl`). It holds one JSON line per
 command, RPC call, toast, panel open/close and route change, and it keeps at
-most about 2 MB. Topic and interjection text are never written, only their
-length. Set `DISCUSS_LOG=<file>` to use another file, or `DISCUSS_LOG=off` to
-disable the journal.
+most about 2 MB. The server part writes `server.jsonl` next to it (start
+consent, preflight, handoff). Topic and interjection text are never written,
+only their length. Set `DISCUSS_LOG=<file>` to use another file, or
+`DISCUSS_LOG=off` to disable the journal.
 
 ## Known limitations
 
-- A full live discussion through the server bridge has not been verified yet;
-  only offline tests and the isolated load check are green.
+- Verified live on OpenCode 2.2.5 (Windows): full discussions through the
+  server bridge, the panel with streaming replies, start from chat and from
+  commands with the confirmation (also when a rule says `allow`), refusal,
+  stop at a turn boundary, usage, and handoff to Plan and Build.
+- Not verified live: interrupting a reply in the middle (replies were too short
+  to stop by hand; covered by unit tests) and the 5-second kill of a stuck
+  dialogue process.
 - The orchestrating agent's own model calls are additional cost and are not
   attributed automatically.
 - Resume, concurrent runs in one location and semantic synthesis of agreements

@@ -1,6 +1,7 @@
 # opencode-discuss
 
 [![build](https://github.com/thejohnd0e/opencode-discuss/actions/workflows/build.yml/badge.svg)](https://github.com/thejohnd0e/opencode-discuss/actions/workflows/build.yml)
+[![npm](https://img.shields.io/npm/v/opencode-discuss.svg)](https://www.npmjs.com/package/opencode-discuss)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![OpenCode](https://img.shields.io/badge/OpenCode-2.2.5-5b6cff.svg)](https://opencode.ai)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -49,7 +50,7 @@ then hand the result to the **Plan** or **Build** agent.
 
 ## Contents
 
-[How it works](#how-it-works) · [Build](#build) · [Install](#install) ·
+[How it works](#how-it-works) · [Install](#install) · [Build](#build) ·
 [Use](#use) · [Limits](#limits) · [Tests](#tests) · [Troubleshooting](#troubleshooting) ·
 [Known limitations](#known-limitations) · [Documentation](#documentation) · [License](#license)
 
@@ -57,7 +58,7 @@ then hand the result to the **Plan** or **Build** agent.
 
 - OpenCode 2.2.5 (the only version this build was verified against)
 - Python 3.12 for the dialogue engine
-- Bun 1.4+ to build the plugin
+- Bun 1.4+ only to build from source (the npm package is prebuilt)
 - Two enabled chat models in OpenCode; authentication stays inside OpenCode
 
 ## How it works
@@ -77,6 +78,59 @@ then hand the result to the **Plan** or **Build** agent.
 - `agents/discuss.md` is the primary agent that makes the mode selectable next
   to Plan and Build.
 
+## Install
+
+### From npm
+
+Add the package to the `plugins` array of `~/.config/opencode/opencode.json(c)`,
+keeping your other entries. A plugin with a server part belongs there, not in
+`cli.json`:
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": [
+    { "package": "opencode-discuss", "options": { "python": "python3" } }
+  ]
+}
+```
+
+OpenCode installs package plugins through npm. Then install the two agent files
+into `~/.config/opencode/agents/`:
+
+```sh
+npx opencode-discuss              # add --dry-run to only see what it would do
+```
+
+and use `/reload` in OpenCode. Python 3.12 is still needed separately; the npm
+package does not install it.
+
+### From source
+
+```sh
+git clone https://github.com/thejohnd0e/opencode-discuss.git
+cd opencode-discuss
+bun install
+bun run build
+bun run install-agents            # the same agent installer
+```
+
+`dist/` is not committed; build before installing. Use the **absolute path of
+the checkout** as `package` in the entry above.
+
+### Options and notes
+
+- `options.python` is the command that runs the dialogue engine. Without it the
+  plugin uses `python` on Windows and `python3` on macOS and Linux.
+- The agent installer copies `agents/discuss.md` and
+  `agents/discuss-participant.md`, leaves identical files alone, and backs up a
+  file you changed as `*.before-install-YYYYMMDD.bak` before replacing it.
+  Copying them by hand works too.
+- If an older TUI-only entry for this plugin exists in
+  `~/.config/opencode/cli.json`, remove that entry; loading both would duplicate
+  the TUI part. Back up both files first.
+- OpenCode reloads configuration after a save; use `/reload` if needed.
+
 ## Build
 
 ```sh
@@ -86,42 +140,6 @@ bun run typecheck
 bun test
 python -m unittest discover -s tests -p "test_*.py"
 ```
-
-`dist/` is not committed; build before installing.
-
-## Install
-
-A package with a server part belongs in `opencode.json(c)`, not `cli.json`:
-
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugins": [
-    { "package": "/path/to/opencode-discuss", "options": { "python": "python3" } }
-  ]
-}
-```
-
-`options.python` is the command that runs the dialogue engine. Without it the
-plugin uses `python` on Windows and `python3` on macOS and Linux.
-
-If an older TUI-only entry for this plugin exists in
-`~/.config/opencode/cli.json`, remove that entry after adding the package to
-`opencode.json`; loading both would duplicate the TUI part. Back up both files
-first.
-
-Install the two agent files into `~/.config/opencode/agents/`:
-
-```sh
-bun run install-agents            # add --dry-run to only see what it would do
-```
-
-It copies `agents/discuss.md` and `agents/discuss-participant.md`, leaves
-identical files alone, and backs up a file you changed as
-`*.before-install-YYYYMMDD.bak` before replacing it. Copying them by hand works
-too.
-
-OpenCode reloads configuration after a save; use `/reload` if needed.
 
 ## Use
 

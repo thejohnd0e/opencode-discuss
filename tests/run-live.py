@@ -36,6 +36,8 @@ def find_opencode():
 
 
 EXE = find_opencode()
+# DISCUSS_PLUGIN: load another spec (an installed package directory, a tarball) instead of this checkout.
+PLUGIN = os.environ.get("DISCUSS_PLUGIN", str(REPO))
 TEMP = Path(tempfile.gettempdir()) / "opencode" / "discuss-server-smoke"
 TEMP.mkdir(parents=True, exist_ok=True)
 
@@ -46,7 +48,7 @@ env = os.environ.copy()
 env["DISCUSS_LOG"] = str(log)
 env["XDG_STATE_HOME"] = str(TEMP / "state")
 env["OPENCODE_CONFIG_CONTENT"] = json.dumps({
-    "plugins": [str(REPO)],
+    "plugins": [PLUGIN],
     "permissions": [],
 })
 env["OPENCODE_CLI_CONFIG_CONTENT"] = json.dumps({

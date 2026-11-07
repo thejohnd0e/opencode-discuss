@@ -15,7 +15,13 @@ import { fileURLToPath } from "node:url"
 const AGENTS = ["discuss.md", "discuss-participant.md"]
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "..", "agents")
 
-const args = process.argv.slice(2)
+// `npx opencode-discuss install-agents` and `npx opencode-discuss` do the same.
+const args = process.argv.slice(2).filter((arg, index) => !(index === 0 && arg === "install-agents"))
+if (args.includes("--help") || args.includes("-h")) {
+  console.log("Usage: opencode-discuss [install-agents] [--dry-run] [--target DIR]\n" +
+    "Copies the Discuss agent files into ~/.config/opencode/agents (or DIR).")
+  process.exit(0)
+}
 const dryRun = args.includes("--dry-run")
 const at = args.indexOf("--target")
 const target = at >= 0 && args[at + 1] ? resolve(args[at + 1]) : join(homedir(), ".config", "opencode", "agents")

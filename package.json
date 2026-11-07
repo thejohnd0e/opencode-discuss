@@ -1,7 +1,6 @@
 {
   "name": "opencode-discuss",
-  "version": "0.7.0",
-  "private": true,
+  "version": "0.7.1",
   "type": "module",
   "description": "Two-model discussion panel for the OpenCode terminal UI",
   "license": "MIT",
@@ -32,9 +31,13 @@
     "./tui": "./dist/tui.js",
     "./rpc": "./dist/rpc.js"
   },
+  "bin": {
+    "opencode-discuss": "scripts/install-agents.mjs"
+  },
   "files": [
     "dist",
-    "scripts",
+    "scripts/*.py",
+    "scripts/*.mjs",
     "agents",
     "README.md",
     "LICENSE"
@@ -47,7 +50,14 @@
     "typecheck": "node node_modules/typescript/bin/tsc -p tsconfig.json",
     "test": "bun test tests/unit",
     "test:python": "python -m unittest discover -s tests -p \"test_*.py\"",
-    "install-agents": "bun scripts/install-agents.mjs"
+    "install-agents": "bun scripts/install-agents.mjs",
+    "prepublishOnly": "bun run build && bun run typecheck && bun test tests/unit"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@opencode/ai": "2.2.5",

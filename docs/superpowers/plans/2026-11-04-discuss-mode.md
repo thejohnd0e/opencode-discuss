@@ -614,14 +614,15 @@ unresolved disagreement are different things.
 - [x] RPC schema, store, tests (41 Python, 214 unit, smoke ready). The saved run `db45a640` now classifies B3 as "left open: the debate ended" in both the runner and the TS ledger, and A5 (accepted) as the earlier statement the reviewer noticed.
 - [ ] Live: one debate with conclusion and review.
 
-## Task 17: Publish to npm (planned 2026-11-07)
+## Task 17: Publish to npm (prepared 2026-11-07)
 
 Goal: install by package name, without cloning and building.
 
-- [ ] Decide the package name (`opencode-discuss` if free) and the npm account; publishing is the owner's step.
-- [ ] Remove `"private": true`; add `"prepublishOnly": "bun run build"`; check `files` (dist, scripts, agents, README, LICENSE) with `npm pack --dry-run`.
-- [ ] Confirm OpenCode 2.2.5 loads a plugin by package name from npm, with the TUI part and RPC, in an isolated instance.
-- [ ] README: install by name, Python still a separate requirement, `install-agents` from the installed package.
+- [x] Name `opencode-discuss` is free; the owner's npm account already publishes `opencode-model-quick-switch`.
+- [x] Removed `"private": true`; `prepublishOnly` builds, typechecks and runs unit tests; `files` drops `scripts/__pycache__` (11 files, ~104 kB); `bin: opencode-discuss` installs the agents; `publishConfig.access: public`.
+- [x] The packed tarball, installed with npm into a clean folder, passes both smoke tests (`DISCUSS_PLUGIN=<installed dir>`).
+- [ ] After publishing: an isolated OpenCode with `plugins: ["opencode-discuss"]` loads it from the registry.
+- [x] README: install from npm first (`npx opencode-discuss` for the agents), from source second, npm badge.
 - [ ] Release notes; publish only with the owner's approval.
 
 ## Task 18: Clean old plan drafts from git history (planned 2026-11-07)

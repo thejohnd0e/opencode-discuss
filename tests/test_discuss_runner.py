@@ -539,6 +539,9 @@ class DebateAnswerProtocolTest(unittest.TestCase):
         self.assertEqual(review["side"], "b")
         system, user = review["messages"][0]["content"], review["messages"][1]["content"]
         self.assertIn("Возражений нет", system)
+        # the reviewer knows the section rules, so a rebutted claim under
+        # disagreements is not reported as a mistake (live 2026-11-07)
+        self.assertIn("отдельного раздела «Опровергнуто» нет", system)
         self.assertIn("## Agreed\nNothing.", user)
         self.assertIn("Опровергнут оппонентом:\n- A1", user)
         host.reply(review, "1. A1 is listed as agreed, but it was rebutted.")

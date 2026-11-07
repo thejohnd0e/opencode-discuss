@@ -557,6 +557,34 @@ class DebateAnswerProtocolTest(unittest.TestCase):
         self.assertEqual(event["messages"], 4)
         host.finish()
 
+    def test_summary_cap_and_a_failed_review_marked_as_review(self):
+        host = Host("--conclusion", "b", "--review", "--max-tokens", "500", "--summary-tokens", "12000", rounds=1)
+        self.addCleanup(host.close)
+        host.wait_for("started")
+        first = host.wait_for("generate")
+        self.assertEqual(first["maxOutputTokens"], 500)
+        host.reply(first, "a")
+        host.reply(host.wait_for("generate"), "b")
+        conclusion = host.wait_for("generate")
+        self.assertEqual(conclusion["maxOutputTokens"], 12000)
+        host.reply(conclusion, "sum")
+        review = host.wait_for("generate")
+        self.assertEqual(review["maxOutputTokens"], 12000)
+        host.send(type="generation_error", requestID=review["requestID"], message="limit")
+        error = host.wait_for("error")
+        self.assertTrue(error.get("review"))
+        self.assertIn("review", error["message"])
+        host.wait_for("done")
+        host.finish()
+
+    def test_summary_cap_never_below_the_reply_cap(self):
+        host = Host("--conclusion", "a", "--max-tokens", "900", "--summary-tokens", "100", rounds=1)
+        self.addCleanup(host.close)
+        host.wait_for("started")
+        host.reply(host.wait_for("generate"), "a")
+        host.reply(host.wait_for("generate"), "b")
+        self.assertEqual(host.wait_for("generate")["maxOutputTokens"], 900)
+
     def test_no_review_without_the_flag_or_when_the_conclusion_failed(self):
         host = Host("--debate", "--conclusion", "a", "--review", rounds=1)
         self.addCleanup(host.close)

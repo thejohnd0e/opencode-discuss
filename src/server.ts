@@ -10,7 +10,7 @@ import { createTurnRunner, TurnRegistry, type HostEvent, type SessionHost, type 
 import { createRunner } from "./discussion/runner"
 import { DEFAULT_RUNNER } from "./paths"
 import { errorShape, explainRefusal, requireConsent, START_ACTION } from "./discussion/consent"
-import { preflight, type CatalogModel } from "./discussion/preflight"
+import { outputLimits, preflight, type CatalogModel } from "./discussion/preflight"
 import { stepUsage, type StepUsage } from "./discussion/usage"
 import { createLog, logPath } from "./ui/log"
 import { sameLocation, sessionDirectory } from "./discussion/location"
@@ -195,7 +195,7 @@ export default Plugin.define({
       }
       const failure = preflight(catalog, settings)
       if (failure) log("preflight-failed", { error: failure.error, side: failure.side })
-      return failure
+      return failure ?? { limits: outputLimits(catalog, settings) }
     }
 
     service = new DiscussionService({
@@ -256,7 +256,7 @@ export default Plugin.define({
 
           // Fail before asking the user to approve something that cannot start.
           const problem = await runPreflight(settings)
-          if (problem) return { content: `Could not start: ${problem.reason}` }
+          if (problem && "error" in problem) return { content: `Could not start: ${problem.reason}` }
           log("consent-requested", { sessionID, agent: context.agent ?? null, rounds: settings.rounds, maxOutputTokens: settings.maxOutputTokens })
           try {
             await ctx.permission.assert({

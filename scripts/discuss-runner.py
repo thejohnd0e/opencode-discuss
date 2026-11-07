@@ -542,7 +542,11 @@ def main():
                         help="after the rounds, this side writes a joint conclusion (bridge mode)")
     parser.add_argument("--review", action="store_true",
                         help="after the conclusion, the other side reviews it (bridge mode)")
+    parser.add_argument("--summary-tokens", type=int, default=None,
+                        help="output cap for the conclusion and review (default: --max-tokens)")
     args = parser.parse_args()
+    if not args.summary_tokens or args.summary_tokens < args.max_tokens:
+        args.summary_tokens = args.max_tokens
 
     engine = load_engine()
 
@@ -709,7 +713,7 @@ def write_conclusion(args, bridge, dialogue, sides, ledger_lines=None):
         buffer["sent"] = now
         emit(type="delta", speaker=side["name"], round=round_no, text=buffer["text"], conclusion=True)
 
-    status, text, usage = bridge.request(args.conclusion, messages, args.max_tokens, on_delta,
+    status, text, usage = bridge.request(args.conclusion, messages, args.summary_tokens, on_delta,
                                          args.a if index == 0 else args.b)
     seconds = round(time.time() - started, 1)
     if status == "cancelled":
@@ -750,7 +754,7 @@ def write_review(args, bridge, dialogue, sides, history, conclusion, ledger_line
         buffer["sent"] = now
         emit(type="delta", speaker=side["name"], round=round_no, text=buffer["text"], review=True)
 
-    status, text, usage = bridge.request("a" if index == 0 else "b", messages, args.max_tokens, on_delta,
+    status, text, usage = bridge.request("a" if index == 0 else "b", messages, args.summary_tokens, on_delta,
                                          args.a if index == 0 else args.b)
     seconds = round(time.time() - started, 1)
     if status == "cancelled":
@@ -758,14 +762,16 @@ def write_review(args, bridge, dialogue, sides, history, conclusion, ledger_line
             emit(type="message", speaker=side["name"], round=round_no, text=buffer["text"].strip(),
                  seconds=seconds, partial=True, review=True)
         return
+    # The review is advisory: its failure is reported with review=True, and the
+    # host keeps the run (with its conclusion) completed.
     if status != "ok":
-        emit(type="error", message=f"{side['name']}: review: {text}", round=round_no)
+        emit(type="error", message=f"{side['name']}: review: {text}", round=round_no, review=True)
         return
     if usage:
         emit(type="usage", speaker=side["name"], **usage)
     text = text.strip()
     if not text:
-        emit(type="error", message=f"{side['name']}: review: empty reply", round=round_no)
+        emit(type="error", message=f"{side['name']}: review: empty reply", round=round_no, review=True)
         return
     dialogue.history.append({"speaker": f"Проверка итога ({side['name']})", "text": text, "seconds": seconds})
     emit(type="message", speaker=side["name"], round=round_no, text=text, seconds=seconds, review=True)

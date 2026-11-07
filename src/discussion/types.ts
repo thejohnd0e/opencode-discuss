@@ -77,6 +77,8 @@ export type Run = {
   usage?: Usage
   /** Set once the result was sent to Plan/Build; it is never sent twice, even after a restart. */
   handoff?: Handoff
+  /** Why the review of the conclusion is missing. The review is advisory: the run still completes. */
+  reviewError?: string
 }
 
 export type Handoff = { target: "plan" | "build"; at: number }
@@ -139,8 +141,28 @@ export function isDialogueReply(message: Message): boolean {
   return (message.speaker === "a" || message.speaker === "b") && message.kind === undefined
 }
 
+/**
+ * The conclusion and its review read the whole discussion, so reasoning models
+ * think longer there than on a reply; a reply-sized cap can run out before any
+ * text (live 2026-11-07: a review used all 6000 tokens on reasoning).
+ */
+export const SUMMARY_MIN_OUTPUT_TOKENS = 12_000
+
+export type OutputLimits = { a?: number; b?: number }
+
+/** Output cap for the conclusion and the review: at least the floor, never above a known model limit. */
+export function summaryOutputTokens(settings: Settings, limits: OutputLimits = {}): number {
+  const known = [limits.a, limits.b].filter((limit): limit is number => typeof limit === "number" && limit > 0)
+  const floor = Math.min(SUMMARY_MIN_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS, ...known)
+  return Math.max(settings.maxOutputTokens, floor)
+}
+
 /** Worst-case participant calls and output tokens; input and orchestrator calls are extra. */
 export function callBound(settings: Settings): { participantCalls: number; worstCaseOutputTokens: number } {
-  const participantCalls = dialogueReplies(settings) + (hasConclusion(settings) ? 1 : 0) + (hasReview(settings) ? 1 : 0)
-  return { participantCalls, worstCaseOutputTokens: participantCalls * settings.maxOutputTokens }
+  const replies = dialogueReplies(settings)
+  const summaries = (hasConclusion(settings) ? 1 : 0) + (hasReview(settings) ? 1 : 0)
+  return {
+    participantCalls: replies + summaries,
+    worstCaseOutputTokens: replies * settings.maxOutputTokens + summaries * summaryOutputTokens(settings),
+  }
 }

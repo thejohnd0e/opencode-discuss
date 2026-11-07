@@ -1,10 +1,22 @@
 import type { Runner, RunnerEvent, RunnerFinished, RunnerStart } from "./runner"
 import { DiscussionStore } from "./store"
-import type { PreflightFailure } from "./preflight"
+import type { PreflightFailure, PreflightPassed } from "./preflight"
 import type { StepUsage } from "./usage"
 import { cleanAnswerCheck, validAnswerCheck } from "./answer"
 import { cleanLedger, validLedger } from "./ledger"
-import { dialogueReplies, hasConclusion, hasReview, isDialogueReply, modelLabel, type Run, type Settings, type Speaker, type Usage } from "./types"
+import {
+  dialogueReplies,
+  hasConclusion,
+  hasReview,
+  isDialogueReply,
+  modelLabel,
+  summaryOutputTokens,
+  type OutputLimits,
+  type Run,
+  type Settings,
+  type Speaker,
+  type Usage,
+} from "./types"
 
 export type ServiceEvent = {
   sessionID: string
@@ -24,7 +36,7 @@ export type ServiceDeps = {
   emit: (event: ServiceEvent) => void
   verifySession: (sessionID: string) => Promise<boolean>
   /** Optional check of the saved pair before a start; a failure aborts it. */
-  preflight?: (settings: Settings) => Promise<PreflightFailure | null>
+  preflight?: (settings: Settings) => Promise<PreflightFailure | PreflightPassed | null>
   createRunner: (onEvent: (event: RunnerEvent) => void) => Runner
 }
 
@@ -80,7 +92,9 @@ export class DiscussionService {
       if (!(await this.#deps.verifySession(sessionID))) {
         return { ok: false, error: "not_found", reason: "session does not belong to this location" }
       }
-      const problem = await this.#deps.preflight?.(settings)
+      const checked = await this.#deps.preflight?.(settings)
+      const problem = checked && "error" in checked ? checked : null
+      const limits: OutputLimits = checked && "limits" in checked ? checked.limits : {}
       if (problem) return { ok: false, error: problem.error, reason: problem.reason, ...(problem.side ? { side: problem.side } : {}), ...(problem.modelID ? { modelID: problem.modelID } : {}) }
       const current = this.#deps.store.session(this.#deps.location, sessionID).settings
       if (!current || JSON.stringify(current) !== JSON.stringify(settings)) {
@@ -119,7 +133,9 @@ export class DiscussionService {
         mode: settings.mode,
         labels,
         models: { a: spec(settings.a), b: spec(settings.b) },
-        ...(hasConclusion(settings) ? { conclusion: settings.conclusion as "a" | "b" } : {}),
+        ...(hasConclusion(settings)
+          ? { conclusion: settings.conclusion as "a" | "b", summaryOutputTokens: summaryOutputTokens(settings, limits) }
+          : {}),
         ...(hasReview(settings) ? { review: true } : {}),
       }
       this.#emit(sessionID, started.runID, "started", { topic: started.topic, settings })
@@ -293,6 +309,12 @@ export class DiscussionService {
         return
       }
       case "error": {
+        if (event.review) {
+          // The review is advisory: a failed one is noted, and the run can still complete.
+          this.#deps.store.setReviewError(this.#deps.location, sessionID, runID, event.message)
+          this.#emit(sessionID, runID, "error", { message: event.message, review: true })
+          return
+        }
         this.#deps.store.setError(this.#deps.location, sessionID, runID, event.message, "provider")
         this.#emit(sessionID, runID, "error", { message: event.message })
         return
@@ -353,7 +375,7 @@ export class DiscussionService {
       } else if (hasConclusion(run.settings) && !run.messages.some((message) => message.kind === "conclusion")) {
         status = "failed"
         error = run.error ?? "the discussion finished, but the conclusion was not written"
-      } else if (hasReview(run.settings) && !run.messages.some((message) => message.kind === "review")) {
+      } else if (hasReview(run.settings) && !run.reviewError && !run.messages.some((message) => message.kind === "review")) {
         status = "failed"
         error = run.error ?? "the conclusion was written, but its review was not"
       }

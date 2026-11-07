@@ -97,6 +97,7 @@ const run = object(
       [],
     ),
     handoff: object({ target: { type: "string", enum: ["plan", "build"] }, at: { type: "number" } }, ["target", "at"]),
+    reviewError: { type: "string" },
   },
   ["runID", "topic", "settings", "status", "createdAt", "messages", "partial"],
 )

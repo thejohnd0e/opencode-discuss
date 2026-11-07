@@ -78,6 +78,7 @@ describe("Discuss RPC contract", () => {
       errorKind: "provider",
       usage: { input: 1, output: 2, reasoning: 3, cost: 4, requests: 5 } satisfies Required<Usage>,
       handoff: { target: "plan", at: 1 },
+      reviewError: "review failed",
     }
     walk((DiscussRpc.methods.snapshot.output as any).properties.run, run, "run")
     walk((DiscussRpc.methods.history.output as any).properties.runs, [run], "runs")

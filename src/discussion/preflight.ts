@@ -1,4 +1,4 @@
-import { modelLabel, type Settings } from "./types"
+import { modelLabel, type OutputLimits, type Settings } from "./types"
 
 export type CatalogModel = {
   providerID: string
@@ -14,6 +14,9 @@ export type PreflightFailure = {
   side?: "a" | "b"
   modelID?: string
 }
+
+/** A passed preflight may carry the pair's output limits, used to cap the conclusion and review. */
+export type PreflightPassed = { limits: OutputLimits }
 
 /**
  * Check the saved pair against the host's model list before anything is
@@ -40,4 +43,15 @@ export function preflight(catalog: readonly CatalogModel[], settings: Settings):
     }
   }
   return null
+}
+
+/** Advertised output limits of the pair, when the catalog has them. */
+export function outputLimits(catalog: readonly CatalogModel[], settings: Settings): OutputLimits {
+  const limits: OutputLimits = {}
+  for (const side of ["a", "b"] as const) {
+    const ref = settings[side]
+    const limit = catalog.find((entry) => entry.providerID === ref.providerID && entry.id === ref.modelID)?.limit?.output
+    if (typeof limit === "number" && limit > 0) limits[side] = limit
+  }
+  return limits
 }

@@ -165,6 +165,8 @@ export function validateRun(value: unknown, where = "run"): Run {
   ) {
     fail(`${where}.handoff is invalid`)
   }
+  const reviewError = value.reviewError
+  if (reviewError !== undefined && typeof reviewError !== "string") fail(`${where}.reviewError must be a string`)
 
   return {
     runID: value.runID,
@@ -180,6 +182,7 @@ export function validateRun(value: unknown, where = "run"): Run {
     ...(errorKind === undefined ? {} : { errorKind: errorKind as Run["errorKind"] }),
     ...(usage(value.usage, `${where}.usage`) === undefined ? {} : { usage: value.usage as Usage }),
     ...(handoff === undefined ? {} : { handoff: { target: handoff.target, at: handoff.at } as Handoff }),
+    ...(reviewError === undefined ? {} : { reviewError }),
   }
 }
 
@@ -479,6 +482,14 @@ export class DiscussionStore {
     const run = this.#requireRun(location, sessionID, runID)
     run.error = error
     run.errorKind = kind
+    return this.#touch()
+  }
+
+  /** The review of the conclusion failed; unlike setError this does not fail the run. */
+  setReviewError(location: string, sessionID: string, runID: string, error: string): number {
+    const run = this.#requireRun(location, sessionID, runID)
+    run.reviewError = error.slice(0, 500)
+    run.partial = null
     return this.#touch()
   }
 

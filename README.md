@@ -272,6 +272,13 @@ or answers "No objections." It does not reopen the debate. The panel shows it as
 "Review of the conclusion · by A", and the handoff puts it right after the
 conclusion. It is one more call; the start dialog counts it.
 
+The conclusion and the review read the whole discussion, so reasoning models
+think longer there. Both get an output cap of at least 12000 tokens (or the
+reply cap, if higher), lowered to a model's advertised limit when it is known;
+the start dialog counts this in the output ceiling. The review is advisory: if
+it fails, the run still completes with its conclusion, and the panel and the
+handoff say that the review was not received.
+
 ## Statuses
 
 `completed` requires every expected reply, and the conclusion when one is set. A run with a missing or empty reply is

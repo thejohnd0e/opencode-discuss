@@ -21,7 +21,8 @@ export type RunnerEvent =
   | { type: "delta"; speaker: string; round: number; text: string; conclusion?: boolean; review?: boolean }
   | { type: "control"; command: string; text?: string }
   | { type: "transcript"; path: string; raw?: string }
-  | { type: "error"; message: string; round?: number }
+  /** `review`: the review of the conclusion failed, which does not fail the run. */
+  | { type: "error"; message: string; round?: number; review?: boolean }
   | { type: "usage"; speaker?: string; input?: number; output?: number; cost?: number }
   | { type: "generate"; requestID: string; side: "a" | "b"; model: string; messages: TurnMessage[]; maxOutputTokens: number }
   | { type: "done"; messages: number; stopped: boolean }
@@ -42,6 +43,8 @@ export type RunnerStart = {
   models?: { a: string; b: string }
   /** Side that writes the joint conclusion after the rounds. */
   conclusion?: "a" | "b"
+  /** Output cap for the conclusion and the review (see `summaryOutputTokens`). */
+  summaryOutputTokens?: number
   /** The other side reviews the conclusion. */
   review?: boolean
 }
@@ -256,6 +259,8 @@ export function createRunner(options: RunnerOptions): Runner {
       if (startOptions.mode === "debate") command.push("--debate")
       if (startOptions.mode === "critical") command.push("--critical")
       if (startOptions.conclusion) command.push("--conclusion", startOptions.conclusion)
+      if (startOptions.conclusion && startOptions.summaryOutputTokens)
+        command.push("--summary-tokens", String(startOptions.summaryOutputTokens))
       if (startOptions.conclusion && startOptions.review) command.push("--review")
 
       const running = spawn(command, {

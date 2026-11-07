@@ -420,6 +420,9 @@ export default Plugin.define({
           const color = kind === "conclusion" ? style.success : kind === "review" ? style.info : style[speakerRole(run.partial.speaker)]
           insert(box, bubble("discuss.msg.live", sideHeader(run.partial.speaker, run.partial.label, run.partial.round, undefined, true, kind), run.partial.text, color, style, true))
         }
+        if (run?.reviewError) {
+          insert(box, line("discuss.review.missing", `⚠ Review of the conclusion not received: ${run.reviewError}. The conclusion above was not checked.`, style.warning))
+        }
 
         const footer: Array<unknown> = []
         if (ledger.claims.length) {

@@ -3,7 +3,16 @@ import { DiscussionService } from "../../src/discussion/service"
 import { DiscussionStore, validateSettings } from "../../src/discussion/store"
 import { buildHandoff } from "../../src/discussion/handoff"
 import { createRunner, type Runner, type RunnerEvent, type RunnerFinished, type RunnerStart } from "../../src/discussion/runner"
-import { callBound, dialogueReplies, isDialogueReply, type Run, type Settings } from "../../src/discussion/types"
+import {
+  callBound,
+  dialogueReplies,
+  isDialogueReply,
+  summaryOutputTokens,
+  type OutputLimits,
+  type Run,
+  type Settings,
+} from "../../src/discussion/types"
+import { outputLimits } from "../../src/discussion/preflight"
 import { applySettingsArgs, describeSettings } from "../../src/ui/settings"
 import { EventEmitter } from "node:events"
 
@@ -53,7 +62,7 @@ class FakeRunner implements Runner {
   }
 }
 
-async function setup(settings: Settings) {
+async function setup(settings: Settings, limits?: OutputLimits) {
   const store = await DiscussionStore.open(memory())
   store.setSettings("loc", "ses", settings)
   const runner = new FakeRunner()
@@ -61,6 +70,7 @@ async function setup(settings: Settings) {
     store,
     location: "loc",
     verifySession: async () => true,
+    ...(limits ? { preflight: async () => ({ limits }) } : {}),
     emit: () => {},
     createRunner: (onEvent) => {
       runner.events.push(onEvent)
@@ -95,7 +105,8 @@ describe("conclusion setting", () => {
 
   test("the ceiling counts one more call with a conclusion", () => {
     expect(callBound(base)).toEqual({ participantCalls: 2, worstCaseOutputTokens: 1000 })
-    expect(callBound({ ...base, conclusion: "b" })).toEqual({ participantCalls: 3, worstCaseOutputTokens: 1500 })
+    // the conclusion gets the summary floor, not the reply cap
+    expect(callBound({ ...base, conclusion: "b" })).toEqual({ participantCalls: 3, worstCaseOutputTokens: 1000 + 12_000 })
     expect(dialogueReplies({ ...base, conclusion: "b" })).toBe(2)
     expect(describeSettings({ ...base, conclusion: "b" })).toContain("conclusion by B · ceiling: 3 calls")
     expect(describeSettings(base)).toContain("no conclusion")
@@ -123,6 +134,23 @@ describe("review setting", () => {
     const off = applySettingsArgs(["conclusion=none"], { ...base, conclusion: "b", review: true })
     expect(off.ok && "review" in off.settings).toBe(false)
     expect(applySettingsArgs(["review=maybe"], { ...base, conclusion: "a" }).ok).toBe(false)
+  })
+
+  test("the conclusion and review get at least the summary cap, never above a known limit", () => {
+    expect(summaryOutputTokens(base)).toBe(12_000)
+    expect(summaryOutputTokens({ ...base, maxOutputTokens: 20_000 })).toBe(20_000)
+    expect(summaryOutputTokens(base, { a: 32_000, b: 8_000 })).toBe(8_000)
+    // the reply cap already passed preflight, so it is never lowered
+    expect(summaryOutputTokens({ ...base, maxOutputTokens: 9_000 }, { b: 8_000 })).toBe(9_000)
+    expect(
+      outputLimits(
+        [
+          { providerID: "p", id: "left", limit: { output: 64_000 } },
+          { providerID: "p", id: "right" },
+        ],
+        base,
+      ),
+    ).toEqual({ a: 64_000 })
   })
 
   test("the ceiling and the description count the review", () => {
@@ -188,6 +216,42 @@ describe("conclusion in a run", () => {
     expect(failed?.error).toContain("review")
   })
 
+  test("a failed review is noted, and the run with its conclusion still completes", async () => {
+    const { runner, service, runID } = await setup({ ...base, conclusion: "b", review: true })
+    runner.emit({ type: "message", speaker: "p/left", round: 1, text: "one" })
+    runner.emit({ type: "message", speaker: "p/right", round: 1, text: "two" })
+    runner.emit({ type: "message", speaker: "p/right", round: 1, text: "sum", conclusion: true })
+    runner.emit({ type: "delta", speaker: "p/left", round: 1, text: "half a revi", review: true })
+    runner.emit({ type: "error", message: "p/left: review: output limit reached", round: 1, review: true })
+    runner.finish({ status: "completed", messages: 3, stopped: false, exitCode: 0 })
+    const run = await settled(service, runID)
+    expect(run?.status).toBe("completed")
+    expect(run?.error).toBeUndefined()
+    expect(run?.reviewError).toBe("p/left: review: output limit reached")
+    expect(run?.partial).toBeNull()
+    expect(run?.messages.map((message) => message.kind ?? "reply")).toEqual(["reply", "reply", "conclusion"])
+  })
+
+  test("a failed conclusion still fails the run", async () => {
+    const { runner, service, runID } = await setup({ ...base, conclusion: "b", review: true })
+    runner.emit({ type: "message", speaker: "p/left", round: 1, text: "one" })
+    runner.emit({ type: "message", speaker: "p/right", round: 1, text: "two" })
+    runner.emit({ type: "error", message: "p/right: conclusion: output limit reached", round: 1 })
+    runner.finish({ status: "completed", messages: 2, stopped: false, exitCode: 0 })
+    const run = await settled(service, runID)
+    expect(run?.status).toBe("failed")
+    expect(run?.error).toContain("conclusion")
+  })
+
+  test("the runner gets the summary cap, lowered to a known model limit", async () => {
+    const plain = await setup({ ...base, conclusion: "a" })
+    expect(plain.runner.starts[0].summaryOutputTokens).toBe(12_000)
+    const limited = await setup({ ...base, conclusion: "a" }, { a: 64_000, b: 8_192 })
+    expect(limited.runner.starts[0].summaryOutputTokens).toBe(8_192)
+    const none = await setup(base)
+    expect(none.runner.starts[0].summaryOutputTokens).toBeUndefined()
+  })
+
   test("a run whose conclusion is missing is failed with a clear reason", async () => {
     const { runner, service, runID } = await setup({ ...base, conclusion: "a" })
     runner.emit({ type: "message", speaker: "p/left", round: 1, text: "one" })
@@ -250,6 +314,21 @@ describe("conclusion in the handoff", () => {
     expect(positions).not.toContain("Agreed point 1")
   })
 
+  test("a missing review is said so, and the run still hands off its conclusion", () => {
+    const packet = buildHandoff({ ...run, settings: { ...run.settings, review: true }, reviewError: "p/left: review: limit" })
+    expect(packet).toContain("## Conclusion")
+    expect(packet).toContain("## Review of the conclusion\n\nNot received: p/left: review: limit.")
+    expect(packet).not.toContain("## Error")
+  })
+
+  test("a stored run keeps its review error", async () => {
+    const store = await DiscussionStore.open(memory())
+    store.setSettings("loc", "ses", { ...base, conclusion: "a", review: true })
+    const started = store.startRun("loc", "ses", "topic")
+    store.setReviewError("loc", "ses", started.runID, "x".repeat(900))
+    expect(store.run("loc", "ses", started.runID)?.reviewError?.length).toBe(500)
+  })
+
   test("a run without a conclusion has no such section", () => {
     expect(buildHandoff({ ...run, messages: run.messages.slice(0, 2) })).not.toContain("## Conclusion")
   })
@@ -282,6 +361,9 @@ describe("runner arguments", () => {
     const withIt = capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" }, conclusion: "b" })
     expect(withIt[withIt.indexOf("--conclusion") + 1]).toBe("b")
     expect(withIt).not.toContain("--review")
+    expect(withIt).not.toContain("--summary-tokens")
+    const capped = capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" }, conclusion: "a", summaryOutputTokens: 12_000 })
+    expect(capped[capped.indexOf("--summary-tokens") + 1]).toBe("12000")
     expect(capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" }, conclusion: "b", review: true })).toContain("--review")
     expect(capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" }, review: true })).not.toContain("--review")
     expect(capture({ rounds: 1, maxOutputTokens: 100, labels: { a: "A", b: "B" } })).not.toContain("--conclusion")

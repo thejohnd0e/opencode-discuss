@@ -80,7 +80,9 @@ export function buildHandoff(run: Run): string {
           "",
           clip(review.text, 3000),
         ]
-      : []),
+      : conclusion && run.reviewError
+        ? ["", "## Review of the conclusion", "", `Not received: ${run.reviewError}. The conclusion was not checked by the other side.`]
+        : []),
     ...ledgerSection(run),
     "",
     "## Latest positions",

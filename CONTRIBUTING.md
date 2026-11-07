@@ -23,7 +23,9 @@ python tests/run-tui-smoke.py                         # TUI setup reaches `ready
 ```
 
 CI runs the first three plus the build. The two smoke tests need a local
-OpenCode and are run by hand.
+OpenCode and are run by hand; they find `opencode` on `PATH` (set `OPENCODE_BIN`
+to use another binary) and work on Windows, macOS and Linux. Use `python3`
+instead of `python` where that is the command's name.
 
 A green offline run does not prove runtime behaviour. Anything that depends on the
 host (hooks, panel, permissions, streaming) should be checked in a real OpenCode

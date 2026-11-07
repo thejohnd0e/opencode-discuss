@@ -18,12 +18,20 @@ then hand the result to the **Plan** or **Build** agent.
 
 - **Two voices, one panel.** Model A and model B take turns; every reply is
   labelled and coloured by side, and streams in word by word.
-- **Three modes.** Cooperative, critical and debate. In a debate each reply must
-  quote the opponent's points and answer them, and the panel flags a reply that
-  did not.
-- **Joint conclusion.** Optionally, one participant sums the discussion up at the
-  end: what both agree on, where they still disagree, recommended next steps.
-  The handoff puts it first.
+- **Debates that actually answer each other.** Most two-model "debates" drift
+  into parallel monologues or polite fake agreement. In debate mode each reply
+  must quote the opponent and answer the quote, and the plugin **checks every
+  quote** against the opponent's last reply, without extra model calls. It
+  flags made-up quotes and a model quoting its own earlier words as the
+  opponent's.
+- **Claim ledger.** Every claim gets a number (A1, B2, …), and the opponent must
+  mark each one rebutted or accepted. The panel tracks which claims are open,
+  skipped or simply left at the end of the debate.
+- **Joint conclusion, checked by the other side.** Optionally, one participant
+  sums up the debate from the ledger: agreed, disagreed, left open, next steps.
+  With `review=on` the other participant then checks that summary for
+  distortions. The handoff puts both first.
+- **Three modes.** Cooperative, critical and debate.
 - **Replies in your language.** The models answer in the language of the topic.
 - **You stay in control.** Starting always asks for your confirmation, the output
   cap and round count are explicit, and `/discuss-stop` ends the run at once.
@@ -89,23 +97,29 @@ A package with a server part belongs in `opencode.json(c)`, not `cli.json`:
 {
   "$schema": "https://opencode.ai/config.json",
   "plugins": [
-    { "package": "D:/path/to/opencode-discuss", "options": { "python": "python" } }
+    { "package": "/path/to/opencode-discuss", "options": { "python": "python3" } }
   ]
 }
 ```
+
+`options.python` is the command that runs the dialogue engine. Without it the
+plugin uses `python` on Windows and `python3` on macOS and Linux.
 
 If an older TUI-only entry for this plugin exists in
 `~/.config/opencode/cli.json`, remove that entry after adding the package to
 `opencode.json`; loading both would duplicate the TUI part. Back up both files
 first.
 
-Copy the agent definition next to your other agents:
+Install the two agent files into `~/.config/opencode/agents/`:
 
 ```sh
-mkdir -p ~/.config/opencode/agents
-cp agents/discuss.md ~/.config/opencode/agents/discuss.md
-cp agents/discuss-participant.md ~/.config/opencode/agents/discuss-participant.md
+bun run install-agents            # add --dry-run to only see what it would do
 ```
+
+It copies `agents/discuss.md` and `agents/discuss-participant.md`, leaves
+identical files alone, and backs up a file you changed as
+`*.before-install-YYYYMMDD.bak` before replacing it. Copying them by hand works
+too.
 
 OpenCode reloads configuration after a save; use `/reload` if needed.
 
@@ -307,7 +321,8 @@ python tests/run-tui-smoke.py         # isolated TUI-load smoke test (setup reac
 
 `tests/run-live.py` loads the plugin in a private OpenCode standalone instance and
 verifies the server part reaches its ready point. It does not call a model and
-does not touch your configuration or state.
+does not touch your configuration or state. Both smoke tests find `opencode` on
+`PATH` (or the npm install on Windows); set `OPENCODE_BIN` to use another one.
 
 ## Troubleshooting
 

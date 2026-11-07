@@ -46,7 +46,8 @@
     "build:tui": "bun build src/tui.ts --target=bun --format=esm --external=@opencode/plugin/tui --external=@opentui/core --external=@opentui/solid --external=solid-js --outfile=dist/tui.js",
     "typecheck": "node node_modules/typescript/bin/tsc -p tsconfig.json",
     "test": "bun test tests/unit",
-    "test:python": "python -m unittest discover -s tests -p \"test_*.py\""
+    "test:python": "python -m unittest discover -s tests -p \"test_*.py\"",
+    "install-agents": "bun scripts/install-agents.mjs"
   },
   "dependencies": {
     "@opencode/ai": "2.2.5",

@@ -8,15 +8,35 @@ Full discussion runs still need an approved model pair; see README.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parent
-EXE = Path(os.environ["APPDATA"]) / "npm/node_modules/@opencode/cli/bin/opencode.exe"
-TEMP = Path(os.environ["LOCALAPPDATA"]) / "Temp/opencode" / "discuss-server-smoke"
+
+
+def find_opencode():
+    """OPENCODE_BIN, then the npm install on Windows, then `opencode` on PATH."""
+    explicit = os.environ.get("OPENCODE_BIN")
+    if explicit:
+        return Path(explicit)
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        npm = Path(appdata) / "npm/node_modules/@opencode/cli/bin/opencode.exe"
+        if npm.exists():
+            return npm
+    found = shutil.which("opencode")
+    if not found:
+        sys.exit("opencode not found: put it on PATH or set OPENCODE_BIN")
+    return Path(found)
+
+
+EXE = find_opencode()
+TEMP = Path(tempfile.gettempdir()) / "opencode" / "discuss-server-smoke"
 TEMP.mkdir(parents=True, exist_ok=True)
 
 log = TEMP / "discuss.jsonl"

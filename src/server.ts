@@ -8,7 +8,7 @@ import { buildHandoff } from "./discussion/handoff"
 import { appendFileSync } from "node:fs"
 import { createTurnRunner, TurnRegistry, type HostEvent, type SessionHost, type TurnMessage } from "./discussion/provider"
 import { createRunner } from "./discussion/runner"
-import { DEFAULT_RUNNER } from "./paths"
+import { DEFAULT_RUNNER, defaultPython } from "./paths"
 import { errorShape, explainRefusal, requireConsent, START_ACTION } from "./discussion/consent"
 import { outputLimits, preflight, type CatalogModel } from "./discussion/preflight"
 import { stepUsage, type StepUsage } from "./discussion/usage"
@@ -206,7 +206,7 @@ export default Plugin.define({
       preflight: runPreflight,
       createRunner: (onEvent) =>
         createRunner({
-          python: String(ctx.options.python ?? "python"),
+          python: String(ctx.options.python ?? defaultPython()),
           script: String(ctx.options.runner ?? DEFAULT_RUNNER),
           cwd: ctx.location.directory,
           turnTimeoutMs: TURN_TIMEOUT_MS,

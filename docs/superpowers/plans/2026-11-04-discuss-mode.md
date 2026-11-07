@@ -18,8 +18,8 @@
 - Keep `scripts/model-duel.py` unchanged; extend `scripts/discuss-runner.py` around its existing functions.
 - Use OpenCode's provider authentication; do not extract, copy, log or independently refresh OAuth credentials.
 - Preserve the user's existing OpenCode proxy route. Verify proxy configuration on the actual generation-owning server process, not only on the TUI; do not assume environment changes propagate to an already-running service.
-- Confirmed routing mechanism: Windows a proxy tool application rules, not assumed HTTP_PROXY settings. Observed OpenCode executable: `C:\Users\<user>\AppData\Roaming\npm\node_modules\@opencode\cli\bin\opencode.exe`. Current Discuss interpreter configured in cli.json: `<path-to-python>`. Direct-HTTP Discuss calls originate from the interpreter process, not `discuss-runner.py`; verify its actual socket-owning executable in a proxy tool during a run (interpreter launchers/venvs can spawn another executable). In the planned OpenCode-provider bridge, provider sockets should instead belong to OpenCode; confirm this rather than adding broad rules for all Python/Node processes.
-- Proxying is optional deployment configuration, not a product requirement or geographic assumption. a proxy tool, the user's proxy names, Windows paths and regional routing belong only in local deployment notes/examples; never hardcode them into the plugin. Ordinary installations must work without a proxy. The supplied screenshot shows an enabled `opencode.exe` application rule and a higher-priority Localhost Direct rule; rule presence alone does not prove a provider connection used it.
+- On the development machine, routing was by per-application proxy rules, not HTTP_PROXY settings. Direct-HTTP Discuss calls originate from the Python interpreter process (`<path-to-python>`), not `discuss-runner.py`; verify the actual socket-owning executable during a run (interpreter launchers/venvs can spawn another executable). In the planned OpenCode-provider bridge, provider sockets should instead belong to OpenCode; confirm this rather than adding broad rules for all Python/Node processes.
+- Proxying is optional deployment configuration, not a product requirement or geographic assumption. Proxy tools, proxy names, local paths and regional routing belong only in local deployment notes/examples; never hardcode them into the plugin. Ordinary installations must work without a proxy. The supplied screenshot shows an enabled `opencode.exe` application rule and a higher-priority Localhost Direct rule; rule presence alone does not prove a provider connection used it.
 - Direct Python HTTP calls, if retained, must use an explicitly verified compatible proxy configuration. No automatic direct-network fallback on proxy failure. Keep local OpenCode IPC and loopback model endpoints out of the external proxy where appropriate; verify rather than changing global routing.
 - Do not start, stop or reload local model servers. Live tests use a model pair explicitly selected by the user.
 - No paid generation during planning. Execution starts with offline tests; live tests require a disclosed request budget.
@@ -193,7 +193,7 @@ The preferred provider bridge is a correlated JSONL request from Python to the s
 - [ ] Add offline multi-client event-recovery tests, delayed generation UI responsiveness and 24-message full-text scrolling tests. A heartbeat alone is not proof that physical keyboard input works.
 - [ ] Add privacy assertions: only the confirmed topic/context and discussion history appear in provider requests; unrelated session messages, workspace files and secrets do not. Verify untrusted transcript instructions cannot manufacture launch or handoff consent.
 - [ ] Add offline proxy-routing tests with a recording local HTTP proxy/fake provider: external direct-HTTP traffic uses the configured proxy, loopback bypass works, proxy failure does not fall back to direct access, and bridge-mode Python opens no provider connection. For real OpenCode generation, verify the established proxy route using sanitized connection evidence during the approved live test, not by sending OAuth tokens to diagnostic endpoints.
-- [ ] Include an ordinary no-proxy offline fixture and document optional external application routing separately from portable plugin settings. a proxy tool-specific connection verification applies to this user's Windows deployment, not all installations; never require a proxy tool or a proxy URL to start Discuss.
+- [ ] Include an ordinary no-proxy offline fixture and document optional external application routing separately from portable plugin settings. Proxy-specific connection verification applies to one deployment, not all installations; never require a proxy or a proxy URL to start Discuss.
 - [ ] Run `bun test`, `python -m unittest discover -s tests -p "test_*.py"`, `bun run build` and `python -m py_compile scripts/model-duel.py scripts/discuss-runner.py`; configure CI to run offline checks only.
 - [ ] With user-approved models, perform a bounded live run: one round (two participant calls), no retries; separately approve any additional cancellation/failure probe. Report actual calls/usage and exact gaps, including physical input checks.
 
@@ -274,7 +274,7 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
     ```
     `runner` is no longer needed after Task 9; the default resolves to the package's own script.
   - The old options `a`, `aUrl`, `b`, `rounds` and `maxTokens` are not carried over. There is no silent default pair, and models are chosen with `/discuss-models`.
-  - `cli.json` → remove only the `/path/to/opencode-discuss` object from `"plugins"`. Keep `recent-models` and `voice-alerts`.
+  - `cli.json` → remove only the `/path/to/opencode-discuss` object from `"plugins"`. Keep every other entry.
 - [x] Back up both files with a dated suffix (`*.before-discuss-server-20261106.bak`), matching the existing backup convention in that directory.
 - [x] Copy `agents/discuss.md` and `agents/discuss-participant.md`. There is no collision: only `vk-cleaner.md` and `vk-online.md` exist there now.
 - [ ] Reload (`/reload`). Verify there is exactly one Discuss server registration, one panel and one `discuss` agent, and no duplicate TUI part.
@@ -332,7 +332,7 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
 
 ## Task 11: First bounded live run (budget approval gate)
 
-- [ ] The user picks the pair with `/discuss-models <A> <B>` and approves the budget. No pair is assumed by the plan or the code. The local `local/test-model` and `local-2/test-model-2` are test models only: usable for a free smoke run if their servers are already running (the agent does not start or stop them), never a default.
+- [ ] The user picks the pair with `/discuss-models <A> <B>` and approves the budget. No pair is assumed by the plan or the code. Local test models are usable for a free smoke run if their servers are already running (the agent does not start or stop them), never a default.
 - [ ] From the home screen, `/discuss-models` creates and opens a Discuss session (Task 10a); `/discuss` opens the panel there.
 - [ ] Also exercise the command forms live: an exact id, a `provider:model` form, an ambiguous fragment (narrowed selector), an unknown id (refusal), and `/discuss-model-b` keeping A.
 - [ ] Settings for the run, set with `/discuss-settings rounds=1 tokens=300 mode=cooperative`: 1 round, 2 participant calls, `maxOutputTokens` 300, a short Cyrillic topic with one emoji. No retries.
@@ -345,7 +345,7 @@ Deferred conveniences: preset-pair management, automatic resume, concurrent runs
   6. Cyrillic and emoji survive byte-for-byte.
   7. Hidden turn sessions do not clutter the user's session list, or the clutter is documented.
 - [ ] Second probe, approved separately: start a 2-round run and press `ctrl+shift+x` mid-reply. Record stop latency, whether generation actually stops (check the local server log or token flow), status `cancelled`, and that no further generation request follows.
-- [ ] Only after this, run a cloud pair (for example `deepseek` via OpenCode) to confirm that provider traffic is owned by `opencode.exe` under the existing a proxy tool rule and that Python opens no provider socket.
+- [ ] Only after this, run a cloud pair (for example `deepseek` via OpenCode) to confirm that provider traffic is owned by the OpenCode process under the existing proxy rule and that Python opens no provider socket.
 - [ ] Triage every finding into blocking/non-blocking items before Task 12. Answer the open questions in `docs/compatibility-2.2.5.md` from the evidence.
 
 ## Task 11a: Turn sessions in the instance's own location — done 2026-11-06 (offline)

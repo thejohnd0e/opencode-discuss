@@ -6,3 +6,11 @@ import { fileURLToPath } from "node:url"
  * sit next to `scripts/`.
  */
 export const DEFAULT_RUNNER = fileURLToPath(new URL("../scripts/discuss-runner.py", import.meta.url))
+
+/**
+ * Python command when the plugin options name none. Windows installs `python`;
+ * macOS and most Linux distributions only have `python3`.
+ */
+export function defaultPython(platform: string = process.platform): string {
+  return platform === "win32" ? "python" : "python3"
+}

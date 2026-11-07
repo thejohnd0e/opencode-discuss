@@ -524,8 +524,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--topic", required=True)
     parser.add_argument("--rounds", type=int, default=2)
-    parser.add_argument("--a", default="local:test-model")
-    parser.add_argument("--b", default="deepseek:deepseek-flash")
+    # No default pair: the host always passes both models (see AGENTS.md).
+    parser.add_argument("--a", required=True, help="model of side A, provider:model")
+    parser.add_argument("--b", required=True, help="model of side B, provider:model")
     parser.add_argument("--max-tokens", type=int, default=1200)
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--out-dir", default="transcripts")

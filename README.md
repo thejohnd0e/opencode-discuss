@@ -321,7 +321,7 @@ kept in every case.
 ## Proxy (optional)
 
 Some networks need an external proxy for provider traffic. This plugin has no
-proxy setting and does not require one. When OpenCode itself is routed through an
+proxy setting and does not require one. When OpenCode itself is routed through a
 per-application proxy tool, the provider calls made by the server use
 that same route. Direct-HTTP mode of the Python adapter would instead originate
 from the Python interpreter, so it would need its own routing rule. Local

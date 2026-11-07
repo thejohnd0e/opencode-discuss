@@ -625,13 +625,13 @@ Goal: install by package name, without cloning and building.
 - [x] README: install from npm first (`npx opencode-discuss` for the agents), from source second, npm badge.
 - [x] Release v0.7.1.
 
-## Task 18: Clean old plan drafts from git history (planned 2026-11-07)
+## Task 18: Clean old plan drafts from git history — done 2026-11-07
 
 Early commits of this plan contain local paths of the development machine (no secrets).
 
-- [ ] Rewrite history so those commits carry the cleaned text (`git filter-repo` on a fresh clone), keeping tags pointing at the rewritten commits.
-- [ ] Needs a force push to `master` and re-pointed release tags: only with the owner's explicit approval, and after any open work is pushed.
-- [ ] Afterwards: check `git log -p` for the old paths, check releases still resolve.
+- [x] History rewritten with `git filter-repo --replace-text` in a fresh clone (49 commits; paths, local test-model names, the Windows user name and the proxy tool name replaced); tags moved to the rewritten commits. Old history kept as a local bundle, outside the repo.
+- [x] Force push with lease and re-pointed tags v0.3.0 to v0.7.1, done by the owner (the push was blocked for the agent).
+- [x] No old pattern in the history; final tree identical to the pre-rewrite HEAD; releases point at the new tags; CI green. Old commits may stay reachable by hash on GitHub until it collects them.
 
 ## Phase 2 delivery checkpoints
 

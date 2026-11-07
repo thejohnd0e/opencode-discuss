@@ -3,7 +3,7 @@
 
 Two kinds of side:
 
-* an OpenAI-compatible HTTP endpoint (`local:test-model`, `deepseek:deepseek-flash`);
+* an OpenAI-compatible HTTP endpoint (`local:<model>`, `deepseek:deepseek-flash`);
 * anything OpenCode itself can reach, including OAuth accounts that have no API
   key (`opencode:openai/gpt-6-luna`), driven through `opencode run --format json`.
 
@@ -38,7 +38,8 @@ import urllib.request
 AUTH_FILE = pathlib.Path.home() / '.local' / 'share' / 'opencode' / 'auth.json'
 
 HTTP_PROVIDERS = {
-    'local': {'url': 'http://127.0.0.1:8080/v1', 'key': None, 'label': 'Qwen'},
+    # Any OpenAI-compatible server on this machine (discuss-runner.py --a-url/--b-url point elsewhere).
+    'local': {'url': 'http://127.0.0.1:8080/v1', 'key': None, 'label': 'Local'},
     'deepseek': {'url': 'https://api.deepseek.com/v1', 'key': 'deepseek', 'label': 'DeepSeek'},
     'gemini': {
         'url': 'https://generativelanguage.googleapis.com/v1beta/openai',

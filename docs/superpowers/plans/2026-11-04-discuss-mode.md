@@ -614,6 +614,24 @@ unresolved disagreement are different things.
 - [x] RPC schema, store, tests (41 Python, 214 unit, smoke ready). The saved run `db45a640` now classifies B3 as "left open: the debate ended" in both the runner and the TS ledger, and A5 (accepted) as the earlier statement the reviewer noticed.
 - [ ] Live: one debate with conclusion and review.
 
+## Task 17: Publish to npm (planned 2026-11-07)
+
+Goal: install by package name, without cloning and building.
+
+- [ ] Decide the package name (`opencode-discuss` if free) and the npm account; publishing is the owner's step.
+- [ ] Remove `"private": true`; add `"prepublishOnly": "bun run build"`; check `files` (dist, scripts, agents, README, LICENSE) with `npm pack --dry-run`.
+- [ ] Confirm OpenCode 2.2.5 loads a plugin by package name from npm, with the TUI part and RPC, in an isolated instance.
+- [ ] README: install by name, Python still a separate requirement, `install-agents` from the installed package.
+- [ ] Release notes; publish only with the owner's approval.
+
+## Task 18: Clean old plan drafts from git history (planned 2026-11-07)
+
+Early commits of this plan contain local paths of the development machine (no secrets).
+
+- [ ] Rewrite history so those commits carry the cleaned text (`git filter-repo` on a fresh clone), keeping tags pointing at the rewritten commits.
+- [ ] Needs a force push to `master` and re-pointed release tags: only with the owner's explicit approval, and after any open work is pushed.
+- [ ] Afterwards: check `git log -p` for the old paths, check releases still resolve.
+
 ## Phase 2 delivery checkpoints
 
 1. **Blockers fixed:** Task 9, offline green, no configuration touched. — done 2026-11-06

@@ -14,7 +14,7 @@ inside the terminal UI. Step in with a remark, change the topic, or stop the run
 then hand the result to the **Plan** or **Build** agent.
 
 <p align="center">
-  <img src="docs/images/panel.png" alt="The Discuss panel in the OpenCode terminal UI: a finished discussion about rewriting versus refactoring, with replies from model A in blue and model B in purple, and the request and usage lines below" width="480">
+  <img src="https://raw.githubusercontent.com/thejohnd0e/opencode-discuss/master/docs/images/panel.png" alt="The Discuss panel in the OpenCode terminal UI: a finished discussion about rewriting versus refactoring, with replies from model A in blue and model B in purple, and the request and usage lines below" width="480">
 </p>
 
 - **Two voices, one panel.** Model A and model B take turns; every reply is
@@ -152,7 +152,7 @@ python -m unittest discover -s tests -p "test_*.py"
 
 Type `/discuss` in the prompt to list the commands:
 
-![The Discuss slash commands in the OpenCode prompt](docs/images/commands.png)
+![The Discuss slash commands in the OpenCode prompt](https://raw.githubusercontent.com/thejohnd0e/opencode-discuss/master/docs/images/commands.png)
 
 | Action | Command | Key |
 | --- | --- | --- |

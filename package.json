@@ -51,7 +51,7 @@
     "test": "bun test tests/unit",
     "test:python": "python -m unittest discover -s tests -p \"test_*.py\"",
     "install-agents": "bun scripts/install-agents.mjs",
-    "prepublishOnly": "bun run build && bun run typecheck && bun test tests/unit"
+    "prepublishOnly": "bun run build && bun run typecheck && bun test tests/unit && bun run test:python"
   },
   "engines": {
     "bun": ">=1.4.0"
@@ -59,11 +59,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {
-    "@opencode/ai": "2.2.5",
-    "@opencode/plugin": "2.2.5"
-  },
   "peerDependencies": {
+    "@opencode/ai": "2.2.5",
+    "@opencode/plugin": "2.2.5",
     "@opentui/core": ">=0.8.0",
     "@opentui/solid": ">=0.8.0",
     "solid-js": ">=1.9.12"
@@ -73,6 +71,25 @@
     "typescript": "^5.5.0",
     "@opentui/core": "0.8.0",
     "@opentui/solid": "0.8.0",
-    "solid-js": "1.9.12"
+    "solid-js": "1.9.12",
+    "@opencode/ai": "2.2.5",
+    "@opencode/plugin": "2.2.5"
+  },
+  "peerDependenciesMeta": {
+    "@opencode/ai": {
+      "optional": true
+    },
+    "@opencode/plugin": {
+      "optional": true
+    },
+    "@opentui/core": {
+      "optional": true
+    },
+    "@opentui/solid": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    }
   }
 }

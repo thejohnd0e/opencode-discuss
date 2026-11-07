@@ -1,6 +1,6 @@
 {
   "name": "opencode-discuss",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "description": "Two-model discussion panel for the OpenCode terminal UI",
